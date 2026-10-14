@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v15';
+const VERSION = 'v16';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -821,6 +821,7 @@ async function start(useCam) {
   $('#camb').onclick = () => { state.cam = !state.cam; setTracks(); };
   $('#share').onclick = () => { $('#sheet').hidden = true; toggleShare(); };
   $('#more').onclick = () => { $('#sheet').hidden = !$('#sheet').hidden; };
+  $('#sheetx').onclick = () => { $('#sheet').hidden = true; };
   $('#face').onchange = (e) => setFace(e.target.value); $('#voice').onchange = (e) => setVoice(e.target.value); $('#hear').onchange = (e) => { voice.hear = e.target.checked; if (voice.ctx) voiceApply(); };
   $('#verbtn').onclick = showVerify; $('#verclose').onclick = () => { $('#verify').hidden = true; };
   $('#burn').onclick = () => { $('#sheet').hidden = true; if (!approvalMode || isHost) burn(); };
