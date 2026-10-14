@@ -1,0 +1,13 @@
+import { chromium } from 'playwright'; import http from 'http'; import fs from 'fs';
+const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(fs.readFileSync('dist/index.html')); }).listen(8173);
+const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--no-sandbox'] });
+let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; };
+const p = await (await b.newContext({ viewport: { width: 390, height: 600 } })).newPage();
+await p.goto('http://localhost:8173/'); await p.fill('#name', 'Ann'); await p.click('#create'); await p.click('#cam'); await p.waitForTimeout(2500);
+await p.click('#more'); ok('sheet opens', await p.evaluate(() => !document.querySelector('#sheet').hidden));
+await p.selectOption('#voice', 'deeper'); await p.waitForTimeout(500);
+const r = await p.evaluate(() => { const s = document.querySelector('#sheet').getBoundingClientRect(); const x = document.querySelector('#sheetx').getBoundingClientRect(); return { top: s.top, xt: x.top, xb: x.bottom, vh: innerHeight }; });
+ok('close button visible on small screen ' + JSON.stringify(r), r.xt >= 0 && r.xb <= r.vh);
+await p.screenshot({ path: '/downloads/sheet.png' });
+await p.click('#sheetx'); ok('close hides sheet', await p.evaluate(() => document.querySelector('#sheet').hidden));
+await b.close(); srv.close(); console.log(fail ? 'FAILED' : 'ALL PASS'); process.exit(fail ? 1 : 0);
