@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v13';
+const VERSION = 'v14';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -97,6 +97,14 @@ function fakeStream(label) {
     g.fillStyle = '#fff'; g.font = '20px sans-serif'; g.fillText(label + ' (test video)', 20, 60); t += 4;
   }, 66);
   return cv.captureStream(15);
+}
+function showMicHelp() {
+  const b = $('#michelp'); if (!b) return; b.hidden = false;
+  $('#micretry').onclick = async () => {
+    const m = $('#micmsg'); m.textContent = 'Checking...';
+    try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach((t) => t.stop()); m.textContent = 'Microphone works. Reloading...'; setTimeout(() => location.reload(), 600); }
+    catch (e) { m.textContent = 'Still blocked (' + ((e && e.name) || 'error') + '). Change the setting, then tap Retry again.'; }
+  };
 }
 async function getStream(useCam) {
   if (useCam && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -807,6 +815,7 @@ async function start(useCam) {
   window.__pr.roomId = roomId;
   $('#gate').hidden = true; $('#room').hidden = false;
   local = await getStream(useCam);
+  if (useCam && !local.getAudioTracks().length) showMicHelp();
   state.mic = local.getAudioTracks().length > 0; state.cam = local.getVideoTracks().length > 0 && useCam;
   $('#mic').onclick = () => { state.mic = !state.mic; setTracks(); };
   $('#camb').onclick = () => { state.cam = !state.cam; setTracks(); };
