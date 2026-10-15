@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v16';
+const VERSION = 'v17';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -100,6 +100,19 @@ function fakeStream(label) {
 }
 function showMicHelp() {
   const b = $('#michelp'); if (!b) return; b.hidden = false;
+  const ua = navigator.userAgent || '';
+  const br = /CriOS/.test(ua) ? 'chrome' : /FxiOS/.test(ua) ? 'firefox' : /EdgiOS/.test(ua) ? 'edge' : (/Safari/.test(ua) && /Version\//.test(ua) && /iPhone|iPad/.test(ua)) ? 'safari' : 'other';
+  const open1 = '<li>Easiest: close this tab, open the invite link again, and tap <b>Allow</b> when it asks for the microphone.</li>';
+  const inapp = '<li>Opened the link inside another app (Messages, Instagram, Gmail)? Open it in your browser instead, then try again.</li>';
+  const S = {
+    safari: ['Safari', open1 + '<li>Tap the <b>aA</b> icon in the address bar, then <b>Website Settings</b>, then <b>Microphone</b>, then <b>Allow</b>.</li><li>Or open the iPhone <b>Settings</b> app, tap <b>Apps</b>, then <b>Safari</b>, then <b>Microphone</b> and choose <b>Ask</b> or <b>Allow</b>.</li>' + inapp],
+    chrome: ['Chrome', open1 + '<li>In Chrome, tap the <b>Microphone</b> icon left of the address bar (it shows only if the site was blocked before) and turn the permission on.</li><li>Or open the iPhone <b>Settings</b> app, tap <b>Apps</b>, then <b>Chrome</b>, and turn on <b>Microphone</b>.</li>' + inapp],
+    firefox: ['Firefox', open1 + '<li>Open the iPhone <b>Settings</b> app, tap <b>Apps</b>, then <b>Firefox</b>, and turn on <b>Microphone</b>.</li>' + inapp],
+    edge: ['Edge', open1 + '<li>Open the iPhone <b>Settings</b> app, tap <b>Apps</b>, then <b>Edge</b>, and turn on <b>Microphone</b>.</li>' + inapp],
+    other: ['', open1 + '<li>Open the iPhone <b>Settings</b> app, tap <b>Apps</b>, then your browser (Safari, Chrome...), and allow <b>Microphone</b>. In Safari you can also tap <b>aA</b> in the address bar, then <b>Website Settings</b>, then <b>Microphone</b>.</li>' + inapp],
+  }[br];
+  $('#micwho').textContent = S[0] ? '(looks like ' + S[0] + ')' : '';
+  $('#micsteps').innerHTML = S[1];
   $('#micretry').onclick = async () => {
     const m = $('#micmsg'); m.textContent = 'Checking...';
     try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach((t) => t.stop()); m.textContent = 'Microphone works. Reloading...'; setTimeout(() => location.reload(), 600); }
