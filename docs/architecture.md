@@ -7,7 +7,7 @@ flowchart LR
   A[Browser A] <-- "WebRTC: media (DTLS-SRTP)<br/>data channels sealed with AES-GCM" --> B[Browser B]
   A -. "offer/answer only" .-> P[(PeerJS broker<br/>0.peerjs.com)]
   B -. "offer/answer only" .-> P
-  A -. "NAT hints" .-> S[STUN servers]
+  A -. "NAT hints" .-> S[Cloudflare STUN]
   A -- "only if direct path fails" --> T[Relay: metered.ca TURN]
   A -- "/turn, /fb, /s" --> W[Pages Function<br/>_worker.js]
   W --> D[(Cloudflare D1:<br/>feedback, rate limits,<br/>short-link ciphertext)]
