@@ -10,7 +10,7 @@ await A.setInputFiles('#brandlogo', { name: 'l.png', mimeType: 'image/png', buff
 ok('logo ready', (await A.textContent('#brandlogonote')) === 'Logo ready');
 await A.uncheck('#approve'); await A.click('#create'); await wait(500);
 const url = A.url(); console.log('link length', url.length);
-ok('join panel shows name as text (no html)', (await A.textContent('#join-brand')).includes('Acme <b>Dental</b>') && (await A.$$('#join-brand b')).length === 0);
+ok('join panel shows name as text (no html)', (await A.textContent('#join-brand')).includes('Acme <b>Dental</b>') && (await A.$$('#join-brand b b')).length === 0 && (await A.textContent('#join-brand b')) === 'Acme <b>Dental</b>');
 ok('logo img present', (await A.$$('#join-brand img')).length === 1);
 await A.click('#cam'); await wait(2000);
 ok('call header branded', (await A.textContent('.top h1')).includes('Acme'));
