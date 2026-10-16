@@ -4,7 +4,8 @@
   "description": "Link-only calls and chat. Private video calls and chat for up to 4 people, no account, nothing stored.",
   "scripts": {
     "build": "node build.mjs",
-    "test": "for t in diag-test approve-test lock-test neg reflect rejoin-test voice-test fb-ui-test face-test bg-test call-test; do node tests/$t.mjs || exit 1; done"
+    "test": "for t in diag-test approve-test lock-test neg reflect rejoin-test voice-test fb-ui-test face-test bg-test call-test; do node tests/$t.mjs || exit 1; done",
+    "verify": "node verify.mjs"
   },
   "dependencies": {
     "esbuild": "^0.28.2",

@@ -1,7 +1,7 @@
 <p align="center"><img src="brand/icon.svg" width="96" alt="mut3d logo"></p>
 
 <h1 align="center">mut3d</h1>
-<p align="center"><b>Link-only calls and chat.</b><br>Private video calls and chat for up to 6 people. No account, no phone number, no app, nothing stored.</p>
+<p align="center"><b>Link-only calls and chat.</b><br>Private video calls and chat for up to 6 people. No account, no phone number, no app. Nothing about your calls is stored.</p>
 <p align="center"><a href="https://arbonomous-private-room.pages.dev"><b>Try it</b></a> &middot; <a href="https://arbonomous-private-room.pages.dev/about/">Landing page</a> &middot; <a href="docs/architecture.md">Architecture</a> &middot; <a href="docs/security-and-limits.md">Limits</a></p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 - Start a call, get a link, send it. Guests knock and the host taps **Let in**.
 - Group video and voice, chat, and file send (up to 25 MB) in the browser.
 - The room key lives after the `#` of the link, so it never reaches a server.
-- Nothing about a call is stored. Close the tab and it is gone.
+- Nothing about a call is stored by us. Close the tab and it is gone.
 - Extras: invite QR and share sheet, optional short link, room lock and waiting list, voice and face disguise (blur, pixelate, mask, avatar, background blur), light and dark theme, installable on phones.
 
 Details for each feature are in [docs/features.md](docs/features.md).

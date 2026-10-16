@@ -7,9 +7,16 @@ async function init(db) {
   await db.batch([
     db.prepare('CREATE TABLE IF NOT EXISTS fb (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, worked TEXT, text TEXT, app TEXT, device TEXT, screen TEXT)'),
     db.prepare('CREATE TABLE IF NOT EXISTS rl (k TEXT PRIMARY KEY, n INTEGER, exp INTEGER)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS sl (id TEXT PRIMARY KEY, c TEXT, exp INTEGER)'),
   ]);
   try { await db.prepare('ALTER TABLE fb ADD COLUMN diag TEXT').run(); } catch (e) { /* exists */ }
   ready = true;
+}
+// Deletes expired rate-limit rows (scrambled address + hour) and expired short links. Runs on any request, at most once a minute per instance.
+async function purge(db, now) {
+  if (globalThis.__pg && now - globalThis.__pg < 60000) return;
+  globalThis.__pg = now;
+  try { await db.batch([db.prepare('DELETE FROM rl WHERE exp < ?').bind(now), db.prepare('DELETE FROM sl WHERE exp < ?').bind(now)]); } catch (e) { /* retry next minute */ }
 }
 export default {
   async fetch(req, env) {
@@ -22,6 +29,7 @@ export default {
         const sf = req.headers.get('sec-fetch-site'); if (sf && sf !== 'same-origin') return new Response('no', { status: 403 });
         await init(env.DB);
         const now = Date.now();
+        await purge(env.DB, now);
         const ip = req.headers.get('cf-connecting-ip') || 'x';
         const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode((env.SALT || 's') + ip)))].slice(0, 8).map((b) => b.toString(16).padStart(2, '0')).join('');
         const hk = 't:' + h + ':' + Math.floor(now / 3600000), dk = 'td:' + Math.floor(now / 86400000);
@@ -60,8 +68,8 @@ export default {
         let o; try { o = JSON.parse(raw); } catch { return new Response('bad', { status: 400 }); }
         if (typeof o.c !== 'string' || !/^[A-Za-z0-9_-]{40,1500}$/.test(o.c)) return new Response('bad', { status: 400 });
         await init(env.DB);
-        await env.DB.prepare('CREATE TABLE IF NOT EXISTS sl (id TEXT PRIMARY KEY, c TEXT, exp INTEGER)').run();
         const now = Date.now();
+        await purge(env.DB, now);
         const ip = req.headers.get('cf-connecting-ip') || 'x';
         const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode((env.SALT || 's') + ip)))].slice(0, 8).map((b) => b.toString(16).padStart(2, '0')).join('');
         const hk = 's:' + h + ':' + Math.floor(now / 3600000), dk = 'sd:' + Math.floor(now / 86400000);
