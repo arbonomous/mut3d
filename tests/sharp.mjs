@@ -1,0 +1,11 @@
+import { chromium, devices } from 'playwright'; import http from 'http'; import fs from 'fs';
+const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'text/html' }); r.end(fs.readFileSync('dist/index.html')); }).listen(8194);
+const b = await chromium.launch({ args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+const c = await b.newContext({ ...devices['iPhone 14'], deviceScaleFactor: 3 }); const p = await c.newPage(); await p.goto('http://localhost:8194/');
+await p.fill('#name', 'Jose'); await p.getByText('Options', { exact: true }).click(); await p.getByText('Brand this room').click(); await p.fill('#brandname', 'pooper');
+await p.setInputFiles('#brandlogo', '/tmp/photo.png'); await new Promise(r=>setTimeout(r,1200));
+console.log(await p.textContent('#brandlogonote'));
+await p.getByText('Options', { exact: true }).click(); await p.click('#create'); await new Promise(r=>setTimeout(r,600)); console.log('url', p.url().length);
+await p.click('#cam'); await new Promise(r=>setTimeout(r,2000));
+console.log(await p.evaluate(()=>{const i=document.querySelector('img.bavatar');return [i.naturalWidth,i.src.length]}));
+await p.screenshot({ path: '/tmp/sharp-call.png', clip:{x:0,y:0,width:390,height:90} }); await b.close(); srv.close();
