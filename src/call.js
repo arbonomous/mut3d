@@ -7,7 +7,7 @@ const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
 const enc = new TextEncoder(), dec = new TextDecoder();
-const MAX = 6;
+const MAX = 8;
 const MAXFILE = 25 * 1024 * 1024;
 const CHUNK = 16 * 1024;
 const b64u = (u) => btoa(String.fromCharCode(...u)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -15,7 +15,7 @@ const hex = (u) => [...u].map((b) => b.toString(16).padStart(2, '0')).join('');
 const sha = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(s)));
 
 let key, roomId, aes, local, screen, peer, me = -1, myName = '';
-let hostPub = null, hostPriv = null, expiryMin = 0, ended = false;
+let hostPub = null, hostPriv = null, expiryMin = 0, startMin = 0, ended = false, brand = { n: '', c: -1, l: '' };
 let approvalMode = false, isHost = false, selfOk = true;
 const vouched = new Set(), knocks = new Map(), blobUrls = [];
 const unhex = (h) => new Uint8Array(h.match(/.{2}/g).map((x) => parseInt(x, 16)));
@@ -28,13 +28,17 @@ function parseHash() {
     if (t[0] === 'p') hostPub = t.slice(1);
     else if (t[0] === 'e') expiryMin = parseInt(t.slice(1), 36) || 0;
     else if (t[0] === 's') hostPriv = t.slice(1);
+    else if (t[0] === 't') startMin = parseInt(t.slice(1), 36) || 0;
+    else if (t[0] === 'n') { try { brand.n = dec.decode(unb64(t.slice(1))).slice(0, 24); } catch (e) { /* ignore */ } }
+    else if (t[0] === 'c') brand.c = parseInt(t.slice(1), 10);
+    else if (t[0] === 'l' && /^[A-Za-z0-9_-]{20,3200}$/.test(t.slice(1))) brand.l = t.slice(1);
   }
   try { const k = 'mut3d-hs:' + key; if (hostPriv) sessionStorage.setItem(k, hostPriv); else if (hostPub) hostPriv = sessionStorage.getItem(k) || null; } catch (e) { /* storage blocked */ }
   if (hostPub && location.hash.includes('.s')) history.replaceState(null, '', inviteLink());
   approvalMode = !!hostPub; isHost = !!(hostPub && hostPriv); selfOk = !approvalMode || isHost;
 }
 function inviteLink() {
-  const parts = [key]; if (hostPub) parts.push('p' + hostPub); if (expiryMin) parts.push('e' + expiryMin.toString(36));
+  const parts = [key]; if (hostPub) parts.push('p' + hostPub); if (expiryMin) parts.push('e' + expiryMin.toString(36)); if (startMin) parts.push('t' + startMin.toString(36)); if (brand.n) parts.push('n' + b64u(enc.encode(brand.n))); if (brand.c >= 0) parts.push('c' + brand.c); if (brand.l) parts.push('l' + brand.l);
   return location.origin + location.pathname + '#' + parts.join('.');
 }
 async function hostKeys() {
@@ -516,7 +520,7 @@ async function resolveShort() {
   } catch (e) { history.replaceState(null, '', '/'); window.__pr.shortErr = String(e && e.message); const n = document.querySelector('#shortgone'); if (n) n.hidden = false; }
 }
 function drawQr(text) {
-  const cv = $('#qr'); const q = qrcode(0, 'L'); q.addData(text); q.make();
+  const cv = $('#qr'); cv.hidden = false; const q = qrcode(0, 'L'); try { q.addData(text); q.make(); } catch (e) { cv.hidden = true; window.__pr.qrErr = true; return; }
   const n = q.getModuleCount(), sc = Math.max(3, Math.floor(280 / (n + 8))), size = (n + 8) * sc; cv.width = cv.height = size;
   const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size); x.fillStyle = '#000';
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) x.fillRect((c + 4) * sc, (r + 4) * sc, sc, sc);
@@ -524,9 +528,10 @@ function drawQr(text) {
 }
 let inviteUrl = '';
 function openInvite() {
+  if (me < 0) parseHash();
   inviteUrl = inviteLink(); $('#invurl').textContent = inviteUrl.length > 60 ? inviteUrl.slice(0, 28) + '...' + inviteUrl.slice(-14) : inviteUrl;
   $('#invshare').hidden = !navigator.share; $('#invnote').textContent = approvalMode ? 'People who open this link ask to join and you let them in.' : 'Anyone with this link can join, so send it only to people you trust.';
-  $('#invshortnote').hidden = true; drawQr(inviteUrl); $('#invite').hidden = false;
+  $('#invshortnote').hidden = true; $('#invics').hidden = !startMin; drawQr(inviteUrl); $('#invite').hidden = false;
 }
 async function copyText(t, btn, label) { try { await navigator.clipboard.writeText(t); } catch (e) { /* no clipboard */ } const o = btn.textContent; btn.textContent = label; setTimeout(() => { btn.textContent = o; }, 2000); }
 // ---- room lock (host only) ----
@@ -656,7 +661,7 @@ function loadIce() {
 function register(slot) {
   if (slot >= MAX) {
     window.__pr.fullTries = (window.__pr.fullTries || 0) + 1;
-    if (window.__pr.fullTries > 12) { status('Room is full (6 people max).'); return; }
+    if (window.__pr.fullTries > 12) { status('Room is full (8 people max).'); return; }
     status('Room looks full. If you just refreshed, waiting a few seconds for your old spot to free up...');
     setTimeout(() => register(0), 6000); return;
   }
@@ -688,16 +693,31 @@ function register(slot) {
 let tuned = '';
 function tuneSenders() {
   const n = Math.max(1, calls.size);
-  const bps = n <= 1 ? 1200000 : n === 2 ? 700000 : n === 3 ? 450000 : 300000;
-  const scale = n <= 2 ? 1 : n === 3 ? 1.5 : 2;
-  const key = n + ':' + bps + ':' + scale; if (key === tuned) return; tuned = key;
+  const bps = n <= 1 ? 1200000 : n === 2 ? 700000 : n === 3 ? 450000 : n <= 5 ? 300000 : 180000;
+  const scale = n <= 2 ? 1 : n === 3 ? 1.5 : n <= 5 ? 2 : 3;
+  const rl = [...calls.values()].map((c) => (c.__relay ? 1 : 0)).join('');
+  const key = n + ':' + bps + ':' + scale + ':' + rl; if (key === tuned) return; tuned = key;
   for (const call of calls.values()) {
     const pc = call.peerConnection; if (!pc) continue;
+    // Calls that go through the free relay count against its small monthly data limit, so send those much smaller.
+    const bps2 = call.__relay ? Math.min(bps, 120000) : bps, scale2 = call.__relay ? Math.max(scale, 3) : scale;
     for (const snd of pc.getSenders()) {
       if (!snd.track || snd.track.kind !== 'video' || !snd.getParameters) continue;
-      try { const p = snd.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}]; p.encodings[0].maxBitrate = bps; p.encodings[0].scaleResolutionDownBy = scale; snd.setParameters(p).catch(() => {}); } catch (e) { /* unsupported */ }
+      try { const p = snd.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}]; p.encodings[0].maxBitrate = bps2; p.encodings[0].scaleResolutionDownBy = scale2; snd.setParameters(p).catch(() => {}); } catch (e) { /* unsupported */ }
     }
   }
+}
+// Find out which calls are going through the relay (strict networks). Checked every few seconds; cheap.
+async function probeRelay() {
+  for (const call of calls.values()) {
+    const pc = call.peerConnection; if (!pc || pc.connectionState !== 'connected') continue;
+    try {
+      const st = await pc.getStats(); let sel = null; const cands = new Map();
+      st.forEach((r) => { if (r.type === 'candidate-pair' && (r.selected || (r.nominated && r.state === 'succeeded'))) sel = r; if (r.type === 'local-candidate') cands.set(r.id, r); });
+      const lc = sel && cands.get(sel.localCandidateId); call.__relay = !!(lc && lc.candidateType === 'relay');
+    } catch (e) { /* stats unavailable */ }
+  }
+  window.__pr.relayCalls = [...calls.values()].filter((c) => c.__relay).length;
 }
 function sweep() {
   if (!peer || peer.destroyed || me < 0) return;
@@ -716,6 +736,7 @@ function sweep() {
     lastTry.set(j, Date.now());
     onConn(peer.connect(roomId + '-' + j, { reliable: true }), true);
   }
+  probeRelay().then(tuneSenders);
   tuneSenders();
   if (window.__pr.relayBusy && !window.__pr.busyWarned) {
     for (const call of calls.values()) {
@@ -847,14 +868,7 @@ async function start(useCam) {
   $('#sendf').onsubmit = (e) => { e.preventDefault(); const t = $('#msg').value.trim(); if (!t) return; addMsg('You', t, true, me); broadcast(0, json({ t })); $('#msg').value = ''; };
   $('#file').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) sendFile(f); };
   $('#attach').onclick = () => $('#file').click();
-  $('#copy').onclick = openInvite; $('#invclose').onclick = () => { $('#invite').hidden = true; };
-  $('#invcopy').onclick = () => copyText(inviteUrl, $('#invcopy'), 'Copied');
-  $('#invshare').onclick = () => { navigator.share({ title: 'Join my mut3d call', text: 'Join my call on mut3d', url: inviteUrl }).catch(() => {}); };
-  $('#invshort').onclick = async () => {
-    const b = $('#invshort'); b.disabled = true; b.textContent = 'Making it...';
-    try { inviteUrl = await makeShort(); $('#invurl').textContent = inviteUrl; drawQr(inviteUrl); $('#invshortnote').hidden = false; b.textContent = 'Short link ready'; window.__pr.shortUrl = inviteUrl; }
-    catch (e) { b.textContent = 'Short link unavailable'; window.__pr.shortErr = String(e && e.message); } finally { setTimeout(() => { b.disabled = false; b.textContent = 'Make a short link'; }, 3000); }
-  };
+  $('#copy').onclick = openInvite;
   $('#lock').hidden = !isHost; $('#lock').onclick = () => setLock(!locked);
   updateMode();
   $('#mode').className = approvalMode ? 'on' : 'open';
@@ -870,19 +884,77 @@ async function start(useCam) {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sweep(); });
 }
 
+// ---- scheduled calls: the start time lives in the link after the #, so no server ever sees it ----
+function whenText() {
+  if (!startMin) return '';
+  const d = new Date(startMin * 60000), left = startMin - Math.floor(Date.now() / 60000);
+  const t = d.toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  if (left > 1440) return 'Scheduled for ' + t + ' (in ' + Math.round(left / 1440) + ' days).';
+  if (left > 90) return 'Scheduled for ' + t + ' (in ' + Math.round(left / 60) + ' hours).';
+  if (left > 1) return 'Scheduled for ' + t + ' (in ' + left + ' min). You can join early and wait.';
+  if (left > -180) return 'Scheduled for ' + t + '. It is time.';
+  return 'This call was scheduled for ' + t + '.';
+}
+const BRAND_COLORS = ['#B9F27C', '#7CC4F2', '#F2B97C', '#F27CA8', '#C49CF2', '#F2E27C'];
+function paintBrand() {
+  const hs = location.hash.slice(1).split('.').slice(1);
+  if (!hs.some((t) => 'ncl'.includes(t[0]))) return;
+  brand = { n: '', c: -1, l: '' };
+  for (const t of hs) { if (t[0] === 'n') { try { brand.n = dec.decode(unb64(t.slice(1))).slice(0, 24); } catch (e) { /* ignore */ } } else if (t[0] === 'c') brand.c = parseInt(t.slice(1), 10); else if (t[0] === 'l' && /^[A-Za-z0-9_-]{20,3200}$/.test(t.slice(1))) brand.l = t.slice(1); }
+  if (brand.c >= 0 && BRAND_COLORS[brand.c]) { document.documentElement.style.setProperty('--signal', BRAND_COLORS[brand.c]); document.documentElement.style.setProperty('--good', BRAND_COLORS[brand.c]); }
+  const mk = (box) => { if (!box) return; box.textContent = ''; if (brand.l) { const im = document.createElement('img'); im.src = 'data:image/webp;base64,' + brand.l.replace(/-/g, '+').replace(/_/g, '/'); im.alt = ''; im.width = im.height = 28; im.style.cssText = 'border-radius:7px;vertical-align:middle;margin-right:8px'; box.appendChild(im); } box.appendChild(document.createTextNode(brand.n || 'mut3d')); };
+  mk(document.querySelector('.top h1')); mk(document.querySelector('#join-brand'));
+  if (brand.n) document.title = brand.n;
+  const jb = document.querySelector('#join-brand'); if (jb) jb.hidden = !brand.n && !brand.l;
+}
+async function makeLogo(file) {
+  const bm = await createImageBitmap(file); const cv = document.createElement('canvas'); cv.width = cv.height = 48; const x = cv.getContext('2d');
+  const m = Math.min(bm.width, bm.height); x.drawImage(bm, (bm.width - m) / 2, (bm.height - m) / 2, m, m, 0, 0, 48, 48);
+  for (const q of [0.7, 0.5, 0.35, 0.2]) { const u = cv.toDataURL('image/webp', q); if (u.startsWith('data:image/webp;base64,')) { const b = u.slice(23).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); if (b.length <= 1600) return b; } }
+  return '';
+}
+function readStart() { startMin = 0; for (const t of location.hash.slice(1).split('.').slice(1)) if (t[0] === 't') startMin = parseInt(t.slice(1), 36) || 0; if (!key) key = location.hash.slice(1).split('.')[0]; }
+function paintWhen() { readStart(); paintBrand(); const w = $('#when-note'); if (!w) return; const t = whenText(); w.textContent = t; w.hidden = !t || location.hash.length <= 10; $('#ics').hidden = w.hidden; $('#joininvite').hidden = w.hidden; }
+function downloadIcs() {
+  if (me < 0) parseHash();
+  if (!startMin) return;
+  const f = (m) => new Date(m * 60000).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const url = inviteLink();
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//mut3d//EN', 'BEGIN:VEVENT', 'UID:' + f(startMin) + '-' + key.slice(0, 8) + '@mut3d', 'DTSTAMP:' + f(Math.floor(Date.now() / 60000)), 'DTSTART:' + f(startMin), 'DTEND:' + f(startMin + 60), 'SUMMARY:mut3d call', 'DESCRIPTION:Join here: ' + url, 'URL:' + url, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'mut3d-call.ics'; document.body.appendChild(a); a.click(); a.remove();
+  window.__pr.icsMade = ics;
+}
+function bindInvite() {
+  $('#invclose').onclick = () => { $('#invite').hidden = true; };
+  $('#invcopy').onclick = () => copyText(inviteUrl, $('#invcopy'), 'Copied');
+  $('#invshare').onclick = () => { navigator.share({ title: 'Join my mut3d call', text: 'Join my call on mut3d', url: inviteUrl }).catch(() => {}); };
+  $('#invshort').onclick = async () => {
+    const b = $('#invshort'); b.disabled = true; b.textContent = 'Making it...';
+    try { inviteUrl = await makeShort(); $('#invurl').textContent = inviteUrl; drawQr(inviteUrl); $('#invshortnote').hidden = false; b.textContent = 'Short link ready'; window.__pr.shortUrl = inviteUrl; }
+    catch (e) { b.textContent = 'Short link unavailable'; window.__pr.shortErr = String(e && e.message); } finally { setTimeout(() => { b.disabled = false; b.textContent = 'Make a short link'; }, 3000); }
+  };
+}
 async function boot() {
+  bindInvite();
   await resolveShort();
   const hasKey = () => location.hash.length > 10;
   $('#create').onclick = async () => {
     const parts = [b64u(crypto.getRandomValues(new Uint8Array(16)))];
-    if ($('#approve').checked) { const k = await hostKeys(); parts.push('p' + k.pub); const ex = +$('#expire').value; if (ex) parts.push('e' + (Math.floor(Date.now() / 60000) + ex).toString(36)); parts.push('s' + k.priv); }
-    else { const ex = +$('#expire').value; if (ex) parts.push('e' + (Math.floor(Date.now() / 60000) + ex).toString(36)); }
+    const wv = $('#when').value, wt = wv ? new Date(wv).getTime() : 0, st = wt > Date.now() ? Math.floor(wt / 60000) : 0;
+    const base = st || Math.floor(Date.now() / 60000);
+    const bn = $('#brandname').value.trim().slice(0, 24), bc = +$('#brandcolor').value, bl = window.__pr.brandLogo || '';
+    const bt = []; if (bn) bt.push('n' + b64u(enc.encode(bn))); if (bn && bc >= 0) bt.push('c' + bc); if (bl) bt.push('l' + bl); parts.push(...bt);
+    if ($('#approve').checked) { const k = await hostKeys(); parts.push('p' + k.pub); const ex = +$('#expire').value; if (ex) parts.push('e' + (base + ex).toString(36)); if (st) parts.push('t' + st.toString(36)); parts.push('s' + k.priv); }
+    else { const ex = +$('#expire').value; if (ex) parts.push('e' + (base + ex).toString(36)); if (st) parts.push('t' + st.toString(36)); }
     location.hash = parts.join('.'); show();
   };
   $('#cam').onclick = () => start(true);
   $('#nocam').onclick = () => start(false);
-  function show() { $('#create').hidden = hasKey(); $('#join').hidden = !hasKey(); $('#opts').hidden = hasKey(); }
+  function show() { $('#create').hidden = hasKey(); $('#join').hidden = !hasKey(); $('#opts').hidden = hasKey(); $('#apr').hidden = hasKey(); paintWhen(); }
   show();
+  setInterval(paintWhen, 20000);
+  $('#brandlogo').onchange = async (e) => { const f = e.target.files[0]; window.__pr.brandLogo = ''; $('#brandlogonote').textContent = ''; if (!f) return; try { window.__pr.brandLogo = await makeLogo(f); $('#brandlogonote').textContent = window.__pr.brandLogo ? 'Logo ready' : 'That image would not shrink enough'; } catch (err) { $('#brandlogonote').textContent = 'Could not read that image'; } };
+  $('#ics').onclick = downloadIcs; $('#joininvite').onclick = openInvite; $('#invics').onclick = downloadIcs;
   window.addEventListener('hashchange', show);
 }
 boot();
