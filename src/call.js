@@ -644,7 +644,7 @@ function onConn(c, outgoing) {
   });
 }
 
-let iceServers = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }];
+let iceServers = [{ urls: 'stun:stun.cloudflare.com:3478' }];
 // Relay (TURN) is a fallback only: the browser still tries a direct path first. Short-lived credentials come from our own server.
 function loadIce() {
   const ac = new AbortController(); const tm = setTimeout(() => ac.abort(), 2500);
