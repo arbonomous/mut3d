@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v22';
+const VERSION = 'v23';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -910,15 +910,39 @@ function paintBrand() {
   brand = { n: '', c: -1, l: '' };
   for (const t of hs) { if (t[0] === 'n') { try { brand.n = dec.decode(unb64(t.slice(1))).slice(0, 24); } catch (e) { /* ignore */ } } else if (t[0] === 'c') brand.c = parseInt(t.slice(1), 10); else if (t[0] === 'l' && /^[A-Za-z0-9_-]{20,3200}$/.test(t.slice(1))) brand.l = t.slice(1); }
   if (brand.c >= 0 && BRAND_COLORS[brand.c]) { document.documentElement.style.setProperty('--signal', BRAND_COLORS[brand.c]); document.documentElement.style.setProperty('--good', BRAND_COLORS[brand.c]); }
-  const mk = (box) => { if (!box) return; box.textContent = ''; if (brand.l) { const im = document.createElement('img'); im.src = 'data:image/webp;base64,' + brand.l.replace(/-/g, '+').replace(/_/g, '/'); im.alt = ''; im.width = im.height = 28; im.style.cssText = 'border-radius:7px;vertical-align:middle;margin-right:8px'; box.appendChild(im); } box.appendChild(document.createTextNode(brand.n || 'mut3d')); };
-  mk(document.querySelector('.top h1')); mk(document.querySelector('#join-brand'));
-  if (brand.n) document.title = brand.n;
-  const jb = document.querySelector('#join-brand'); if (jb) jb.hidden = !brand.n && !brand.l;
+  const bk = location.hash.split('.').filter((t) => 'ncl'.includes(t[0] || '-') && t.length > 1).join('.'); if (window.__bk === bk && document.querySelector('.top .bavatar')) return; window.__bk = bk;
+  const av = (size) => {
+    let el;
+    if (brand.l) {
+      const t = brand.l[0], legacy = t !== 'j' && t !== 'w', body = legacy ? brand.l : brand.l.slice(1);
+      el = document.createElement('img'); el.src = 'data:image/' + (t === 'j' ? 'jpeg' : 'webp') + ';base64,' + body.replace(/-/g, '+').replace(/_/g, '/'); el.alt = 'Room logo';
+      el.onerror = () => { const f = document.createElement('div'); f.className = 'bavatar binit'; f.textContent = (brand.n || 'm').trim().charAt(0).toUpperCase() || 'm'; el.replaceWith(f); };
+    } else { el = document.createElement('div'); el.textContent = (brand.n || 'm').trim().charAt(0).toUpperCase() || 'm'; el.className = 'binit'; }
+    el.classList.add('bavatar'); return el;
+  };
+  const branded = !!(brand.n || brand.l);
+  const top = document.querySelector('.top'), h1 = document.querySelector('.top h1'), sub = $('#sub'), tm = $('#topmark');
+  if (top && h1) { top.querySelectorAll('.bavatar').forEach((x) => x.remove()); h1.textContent = brand.n || 'mut3d'; if (sub) sub.hidden = !branded; if (tm) tm.style.display = branded ? 'none' : ''; if (branded) top.insertBefore(av(40), top.firstChild); }
+  const jb = document.querySelector('#join-brand');
+  if (jb) { jb.textContent = ''; if (branded) { jb.appendChild(av(84)); const b = document.createElement('b'); b.textContent = brand.n || 'Private call'; jb.appendChild(b); const sm = document.createElement('small'); sm.textContent = 'Private call on mut3d'; jb.appendChild(sm); } jb.hidden = !branded; }
+  if (brand.n) document.title = brand.n + ' on mut3d';
 }
 async function makeLogo(file) {
-  const bm = await createImageBitmap(file); const cv = document.createElement('canvas'); cv.width = cv.height = 48; const x = cv.getContext('2d');
-  const m = Math.min(bm.width, bm.height); x.drawImage(bm, (bm.width - m) / 2, (bm.height - m) / 2, m, m, 0, 0, 48, 48);
-  for (const q of [0.7, 0.5, 0.35, 0.2]) { const u = cv.toDataURL('image/webp', q); if (u.startsWith('data:image/webp;base64,')) { const b = u.slice(23).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); if (b.length <= 1600) return b; } }
+  // Shrinks the picture on this phone until it is small enough to travel inside the link. Safari cannot save webp, so it falls back to jpeg.
+  const bm = await createImageBitmap(file);
+  for (const size of [96, 72, 56, 44, 32]) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = size; const x = cv.getContext('2d');
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, size, size);
+    const m = Math.min(bm.width, bm.height); x.drawImage(bm, (bm.width - m) / 2, (bm.height - m) / 2, m, m, 0, 0, size, size);
+    for (const q of [0.7, 0.5, 0.35]) {
+      for (const [mime, tag] of [['image/webp', 'w'], ['image/jpeg', 'j']]) {
+        const u = cv.toDataURL(mime, q); if (!u.startsWith('data:' + mime + ';base64,')) continue;
+        const b = u.slice(('data:' + mime + ';base64,').length).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        if (b.length + 1 <= 1900) return tag + b;
+        break;
+      }
+    }
+  }
   return '';
 }
 function readStart() { startMin = 0; for (const t of location.hash.slice(1).split('.').slice(1)) if (t[0] === 't') startMin = parseInt(t.slice(1), 36) || 0; if (!key) key = location.hash.slice(1).split('.')[0]; }
