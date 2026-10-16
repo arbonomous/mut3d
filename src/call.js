@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v17';
+const VERSION = 'v22';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -33,7 +33,14 @@ function parseHash() {
     else if (t[0] === 'c') brand.c = parseInt(t.slice(1), 10);
     else if (t[0] === 'l' && /^[A-Za-z0-9_-]{20,3200}$/.test(t.slice(1))) brand.l = t.slice(1);
   }
-  try { const k = 'mut3d-hs:' + key; if (hostPriv) sessionStorage.setItem(k, hostPriv); else if (hostPub) hostPriv = sessionStorage.getItem(k) || null; } catch (e) { /* storage blocked */ }
+  // The host's secret survives a page reload or a phone browser restoring the tab. It is kept in this tab's storage and, as a backup for
+  // browsers that drop tab storage, in local storage for 24 hours at most. It is removed when the room ends. It never leaves this device.
+  try {
+    const k = 'mut3d-hs:' + key, now = Date.now();
+    for (let i = localStorage.length - 1; i >= 0; i--) { const n = localStorage.key(i); if (n && n.startsWith('mut3d-hs:')) { try { if (now - JSON.parse(localStorage.getItem(n)).t > 86400000) localStorage.removeItem(n); } catch (e) { localStorage.removeItem(n); } } }
+    if (hostPriv) { try { sessionStorage.setItem(k, hostPriv); } catch (e) { /* blocked */ } try { localStorage.setItem(k, JSON.stringify({ p: hostPriv, t: now })); } catch (e) { /* blocked */ } }
+    else if (hostPub) { let v = null; try { v = sessionStorage.getItem(k); } catch (e) { /* blocked */ } if (!v) { try { const o = JSON.parse(localStorage.getItem(k)); if (o && o.p) v = o.p; } catch (e) { /* none */ } } hostPriv = v || null; }
+  } catch (e) { /* storage blocked */ }
   if (hostPub && location.hash.includes('.s')) history.replaceState(null, '', inviteLink());
   approvalMode = !!hostPub; isHost = !!(hostPub && hostPriv); selfOk = !approvalMode || isHost;
 }
@@ -782,6 +789,7 @@ function stopShare() {
 }
 // ---- end room, verify code ----
 function wipe(msg) {
+  try { localStorage.removeItem('mut3d-hs:' + key); sessionStorage.removeItem('mut3d-hs:' + key); } catch (e) { /* ignore */ }
   if (ended) return; ended = true;
   try { peer && peer.destroy(); } catch (e) { /* closing */ }
   for (const c of conns.values()) { try { c.close(); } catch (e) { /* closing */ } }
