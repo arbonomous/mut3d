@@ -1,7 +1,7 @@
 <p align="center"><img src="brand/icon.svg" width="96" alt="mut3d logo"></p>
 
 <h1 align="center">mut3d</h1>
-<p align="center"><b>Link-only calls and chat.</b><br>Private video calls and chat for up to 6 people. No account, no phone number, no app. Nothing about your calls is stored.</p>
+<p align="center"><b>Link-only calls and chat.</b><br>Private video calls and chat for up to 8 people. No account, no phone number, no app. Nothing about your calls is stored.</p>
 <p align="center"><a href="https://arbonomous-private-room.pages.dev"><b>Try it</b></a> &middot; <a href="https://arbonomous-private-room.pages.dev/about/">Landing page</a> &middot; <a href="docs/architecture.md">Architecture</a> &middot; <a href="docs/security-and-limits.md">Limits</a></p>
 
 <p align="center">
@@ -39,7 +39,9 @@ Vanilla JavaScript bundled with esbuild into one HTML file &middot; WebRTC + Pee
 - Anyone with the full link can knock. Share it only over a channel you trust.
 - Host approval, lock and end-room are enforced in each person's browser. Modified code could ignore them, and anyone can screenshot or record.
 - People in a call can see each other's IP addresses. A small free relay is a fallback and may run out.
-- Up to 6 people (video is sent smaller as more people join; with 5-6 people expect lower quality and heavy data use, especially on cellular). Tested in headless browsers, not yet on real phones (share sheet, QR scanning, cutout speed on older iPhones).
+- Scheduled calls: pick a time when you start a call. The time travels inside the link (after the #, never sent to a server). Guests see a countdown and can add it to their calendar (.ics). Adding it to a calendar app puts the link in that app.
+- On strict networks the free relay is used. Calls that go through it send much smaller video to protect its small monthly data limit.
+- Up to 8 people (video is sent smaller as more people join; with 6-8 people expect lower quality and heavy data use, especially on cellular). Tested in headless browsers, not yet on real phones (share sheet, QR scanning, cutout speed on older iPhones).
 
 The complete list is in [docs/security-and-limits.md](docs/security-and-limits.md).
 

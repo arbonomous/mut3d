@@ -64,9 +64,9 @@ export default {
       try {
         if (!env.DB) return new Response('off', { status: 503 });
         const sf = req.headers.get('sec-fetch-site'); if (sf && sf !== 'same-origin') return new Response('no', { status: 403 });
-        const raw = await req.text(); if (raw.length > 2000) return new Response('too big', { status: 413 });
+        const raw = await req.text(); if (raw.length > 6000) return new Response('too big', { status: 413 });
         let o; try { o = JSON.parse(raw); } catch { return new Response('bad', { status: 400 }); }
-        if (typeof o.c !== 'string' || !/^[A-Za-z0-9_-]{40,1500}$/.test(o.c)) return new Response('bad', { status: 400 });
+        if (typeof o.c !== 'string' || !/^[A-Za-z0-9_-]{40,5000}$/.test(o.c)) return new Response('bad', { status: 400 });
         await init(env.DB);
         const now = Date.now();
         await purge(env.DB, now);
