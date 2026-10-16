@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v23';
+const VERSION = 'v24';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -930,15 +930,27 @@ function paintBrand() {
 async function makeLogo(file) {
   // Shrinks the picture on this phone until it is small enough to travel inside the link. Safari cannot save webp, so it falls back to jpeg.
   const bm = await createImageBitmap(file);
-  for (const size of [96, 72, 56, 44, 32]) {
-    const cv = document.createElement('canvas'); cv.width = cv.height = size; const x = cv.getContext('2d');
-    x.fillStyle = '#ffffff'; x.fillRect(0, 0, size, size);
-    const m = Math.min(bm.width, bm.height); x.drawImage(bm, (bm.width - m) / 2, (bm.height - m) / 2, m, m, 0, 0, size, size);
-    for (const q of [0.7, 0.5, 0.35]) {
+  const m = Math.min(bm.width, bm.height), sx = (bm.width - m) / 2, sy = (bm.height - m) / 2;
+  // Halve in steps (one big jump aliases and looks soft), then sharpen lightly at the final size.
+  let src = document.createElement('canvas'); let cur = Math.min(m, 512); src.width = src.height = cur;
+  { const x = src.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(bm, sx, sy, m, m, 0, 0, cur, cur); }
+  const scaled = (size) => {
+    let c = src, w = cur;
+    while (w / 2 >= size) { const n = document.createElement('canvas'); n.width = n.height = Math.round(w / 2); const x = n.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, n.width, n.height); c = n; w = n.width; }
+    const o = document.createElement('canvas'); o.width = o.height = size; const x = o.getContext('2d');
+    x.fillStyle = '#ffffff'; x.fillRect(0, 0, size, size); x.imageSmoothingQuality = 'high'; x.drawImage(c, 0, 0, size, size);
+    try { const d = x.getImageData(0, 0, size, size), p = d.data, q = new Uint8ClampedArray(p), k = 0.5;
+      for (let j = 1; j < size - 1; j++) for (let i = 1; i < size - 1; i++) for (let ch = 0; ch < 3; ch++) { const o2 = (j * size + i) * 4 + ch; const avg = (q[o2 - 4] + q[o2 + 4] + q[o2 - size * 4] + q[o2 + size * 4]) / 4; p[o2] = q[o2] + k * (q[o2] - avg); }
+      x.putImageData(d, 0, 0); } catch (e) {}
+    return o;
+  };
+  for (const size of [112, 96, 80, 64, 52, 44, 32]) {
+    const cv = scaled(size);
+    for (const q of [0.8, 0.65, 0.5, 0.35, 0.22]) {
       for (const [mime, tag] of [['image/webp', 'w'], ['image/jpeg', 'j']]) {
         const u = cv.toDataURL(mime, q); if (!u.startsWith('data:' + mime + ';base64,')) continue;
         const b = u.slice(('data:' + mime + ';base64,').length).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        if (b.length + 1 <= 1900) return tag + b;
+        if (b.length + 1 <= 2200) return tag + b;
         break;
       }
     }
