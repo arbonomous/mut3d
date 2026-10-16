@@ -14,7 +14,7 @@
 - The host's signing key lives in the host's own address bar (the part after the `#`, not in the invite link). If the host loses that tab's address they lose host rights. Lock and the waiting list live in the host's browser, so if the host closes the tab nobody is admitted.
 - Anyone with the full link can knock, and can see and hear the call once let in. Share the link only over a channel you trust. There is no identity beyond the name people type.
 - Peers connect directly, so people in a call can see each other's IP addresses. A small free relay (metered.ca TURN, 500 MB trial tier) is used only as a fallback. It sees IP addresses and timing, not content. A strict network may still fail to connect.
-- Up to 6 people. Screen share is not available on most phones.
+- Up to 8 people. Screen share is not available on most phones.
 - Face and voice effects are disguises, not anonymity.
 - If a device is compromised, no tool can help.
 - Face and background-blur model licences were not independently verified; `@mediapipe/tasks-vision` is Apache-2.0.
