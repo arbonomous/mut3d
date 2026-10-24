@@ -73,7 +73,7 @@ window.__pr = { conns, calls, stats, Peer, info, forceSend: (type, o) => { for (
 
 window.addEventListener('error', (e) => { const x = document.getElementById('err'); if (x) { x.style.display = 'block'; x.textContent = 'Problem: ' + (e.message || e.error) + ' (' + (e.lineno || '') + ')'; } });
 window.addEventListener('unhandledrejection', (e) => { const x = document.getElementById('err'); if (x) { x.style.display = 'block'; x.textContent = 'Problem: ' + (e.reason && e.reason.message || e.reason); } });
-const status = (t) => { $('#status').textContent = t; };
+const status = (t) => { const s = $('#status'); s.textContent = t; s.classList.toggle('warn', !!t && t !== 'In the call'); };
 const slotOf = (id) => +id.split('-').pop();
 const nameOf = (s) => (info.get(s) && info.get(s).name) || 'Guest ' + (s + 1);
 
@@ -160,7 +160,7 @@ function paintTile(slot) {
   const t = tiles.get(slot); if (!t) return;
   const i = slot === me ? { name: myName || 'You', mic: state.mic, cam: state.cam, sharing: !!screen } : (info.get(slot) || {});
   t.querySelector('.nm').textContent = slot === me ? (myName || 'You') + ' (you)' : nameOf(slot);
-  t.querySelector('.ic').textContent = (i.mic === false ? ' 🔇' : '') + (i.cam === false ? ' 📷off' : '') + (i.sharing ? ' 🖥' : '');
+  { const ic = t.querySelector('.ic'); ic.textContent = ''; const g = document.createElement('span'); g.className = 'icg'; g.textContent = (i.mic === false ? ' 🔇' : '') + (i.cam === false ? ' 📷off' : '') + (i.sharing ? ' 🖥' : ''); ic.appendChild(g); if (i.mic === false) { const e = document.createElement('i'); e.className = 'mioff'; ic.appendChild(e); } if (i.cam === false) { const e = document.createElement('i'); e.className = 'caoff'; ic.appendChild(e); } if (i.sharing) { const e = document.createElement('i'); e.className = 'shr'; ic.appendChild(e); } }
   t.classList.toggle('off', i.cam === false && !i.sharing);
   const n = tiles.size; $('#videos').dataset.n = n;
 }
@@ -434,8 +434,8 @@ function watchCall(s, call) {
 // ---- chat ----
 function addMsg(who, text, mine, slot) {
   const d = document.createElement('div'); d.className = 'msg' + (mine ? ' mine' : '');
-  const b = document.createElement('b'); b.textContent = who + ' '; b.style.color = colors[(slot || 0) % 4];
-  const s = document.createElement('span'); s.textContent = text;
+  const b = document.createElement('b'); b.textContent = who; b.style.color = mine ? 'var(--signal)' : colors[(slot || 0) % 4];
+  const s = document.createElement('span'); s.className = 'bub'; s.textContent = text;
   d.append(b, s); const l = $('#log'); l.appendChild(d); l.scrollTop = l.scrollHeight;
   if (!mine && $('#chatpanel').hidden) $('#chatbtn').classList.add('ping');
 }
@@ -759,8 +759,8 @@ function sweep() {
 function setTracks() {
   local.getAudioTracks().forEach((t) => { t.enabled = state.mic; }); if (voice.track) voice.track.enabled = state.mic;
   local.getVideoTracks().forEach((t) => { t.enabled = state.cam; }); if (face.track) face.track.enabled = state.cam;
-  $('#mic').textContent = state.mic ? 'Mute' : 'Unmute'; $('#mic').classList.toggle('off', !state.mic);
-  $('#camb').textContent = state.cam ? 'Camera off' : 'Camera on'; $('#camb').classList.toggle('off', !state.cam);
+  $('#mic .bl').textContent = state.mic ? 'Mute' : 'Unmute'; $('#mic').setAttribute('aria-label', state.mic ? 'Mute' : 'Unmute'); $('#mic').classList.toggle('off', !state.mic);
+  $('#camb .bl').textContent = state.cam ? 'Camera off' : 'Camera on'; $('#camb').setAttribute('aria-label', state.cam ? 'Camera off' : 'Camera on'); $('#camb').classList.toggle('off', !state.cam);
   paintTile(me); sendMeta();
 }
 function swapVideo(track) {
@@ -870,7 +870,10 @@ async function start(useCam) {
   $('#burn').hidden = approvalMode && !isHost;
   $('#waitleave').onclick = leave; $('#again').onclick = () => { location.href = location.pathname; };
   $('#leave').onclick = leave;
-  $('#chatbtn').onclick = () => { const p = $('#chatpanel'); p.hidden = !p.hidden; $('#main').classList.toggle('chat', !p.hidden); $('#chatbtn').classList.remove('ping'); if (!p.hidden) { $('#log').scrollTop = 1e9; } };
+  const setChat = (open) => { const p = $('#chatpanel'); p.hidden = !open; $('#chatback').hidden = !open; $('#main').classList.toggle('chat', open); if (open) { $('#chatbtn').classList.remove('ping'); $('#log').scrollTop = 1e9; } };
+  $('#chatbtn').onclick = () => setChat($('#chatpanel').hidden);
+  $('#chatx').onclick = () => setChat(false);
+  $('#chatback').onclick = () => setChat(false);
   // Keep the whole call screen inside the visible area when the phone keyboard opens, so the message box and buttons stay reachable.
   if (window.visualViewport) { const vv = window.visualViewport; const fit = () => { const r = $('#room'); r.style.height = vv.height + 'px'; r.style.top = vv.offsetTop + 'px'; }; vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); fit(); }
   $('#sendf').onsubmit = (e) => { e.preventDefault(); const t = $('#msg').value.trim(); if (!t) return; addMsg('You', t, true, me); broadcast(0, json({ t })); $('#msg').value = ''; };
