@@ -3,12 +3,12 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
 const b = await chromium.launch({ args: ['--no-sandbox'] });
 const p = await (await b.newContext()).newPage();
 await p.route('**/ai.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const gpuInfo=async()=>({ok:true,f16:false});export const hasModel=()=>true;window.__loads=[];export const loadModel=async(id,cb)=>{window.__loads.push(id);if(/7B/.test(id)&&window.__fail3)throw new Error('out of memory');cb('x',1)};export const ask=async(m,cb)=>{cb('x');return 'x'};export const stop=()=>{}` }));
-await p.goto('http://localhost:8135/'); await p.click('#create'); await p.click('#nocam'); await p.waitForTimeout(1000);
+await p.goto('http://localhost:8135/'); await p.click('#create'); await p.waitForTimeout(1000);
 const res = []; const ok = (n, v, x) => { res.push(v); console.log(v ? 'PASS' : 'FAIL', n, x || ''); };
 ok('default is 7B', (await p.inputValue('#aimodel')).includes('7B'));
 await p.evaluate(() => { window.__fail3 = false; }); await p.click('#aiload'); await p.waitForTimeout(600);
 ok('7B loads when it fits', /Strong \(7B coder\) model/.test(await p.textContent('#aiprog')), await p.textContent('#aiprog'));
-const p2 = await (await b.newContext()).newPage(); await p2.route('**/ai.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const gpuInfo=async()=>({ok:true,f16:false});export const hasModel=()=>true;window.__loads=[];export const loadModel=async(id,cb)=>{window.__loads.push(id);if(/7B/.test(id)&&window.__fail3)throw new Error('out of memory');cb('x',1)};export const ask=async(m,cb)=>{cb('x');return 'x'};export const stop=()=>{}` })); await p2.goto('http://localhost:8135/'); await p2.click('#create'); await p2.click('#nocam'); await p2.waitForTimeout(1000);
+const p2 = await (await b.newContext()).newPage(); await p2.route('**/ai.js', (r) => r.fulfill({ contentType: 'text/javascript', body: `export const gpuInfo=async()=>({ok:true,f16:false});export const hasModel=()=>true;window.__loads=[];export const loadModel=async(id,cb)=>{window.__loads.push(id);if(/7B/.test(id)&&window.__fail3)throw new Error('out of memory');cb('x',1)};export const ask=async(m,cb)=>{cb('x');return 'x'};export const stop=()=>{}` })); await p2.goto('http://localhost:8135/'); await p2.click('#create'); await p2.waitForTimeout(1000);
 await p2.evaluate(() => { window.__fail3 = true; }); await p2.click('#aiload'); await p2.waitForTimeout(800);
 const t = await p2.textContent('#aiprog'); const loads = await p2.evaluate(() => window.__loads);
 ok('falls back to 3B when 7B fails, says so', /Stronger \(3B\) model/.test(t) && /did not fit/.test(t) && loads.length === 2, t);

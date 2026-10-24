@@ -6,6 +6,6 @@ await p.fill('#name', 'Jose'); await p.getByText('Options', { exact: true }).cli
 await p.setInputFiles('#brandlogo', '/tmp/photo.png'); await new Promise(r=>setTimeout(r,1200));
 console.log(await p.textContent('#brandlogonote'));
 await p.getByText('Options', { exact: true }).click(); await p.click('#create'); await new Promise(r=>setTimeout(r,600)); console.log('url', p.url().length);
-await p.click('#cam'); await new Promise(r=>setTimeout(r,2000));
+await p.click('#camb'); await p.click('#mic'); await new Promise(r=>setTimeout(r,2000));
 console.log(await p.evaluate(()=>{const i=document.querySelector('img.bavatar');return [i.naturalWidth,i.src.length]}));
 await p.screenshot({ path: '/tmp/sharp-call.png', clip:{x:0,y:0,width:390,height:90} }); await b.close(); srv.close();

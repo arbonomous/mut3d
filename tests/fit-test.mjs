@@ -7,8 +7,10 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 for (const dev of ['iPhone 14', 'iPhone SE', 'iPhone 14 Pro Max']) for (const brand of [false, true]) {
   const c = await b.newContext({ ...devices[dev] }); const p = await c.newPage(); await p.goto('http://localhost:8193/'); await p.fill('#name', 'Jose Gorbea Long Name');
   if (brand) { await p.getByText('Options', { exact: true }).click(); await p.getByText('Brand this room').click(); await p.fill('#brandname', 'Very Long Room Name Here'); }
-  await p.click('#create'); await wait(300); const j = await p.evaluate(over); ok(`${dev} ${brand ? 'branded ' : ''}join screen fits`, j.sw <= j.W && j.out.length === 0, JSON.stringify(j));
-  await p.click('#cam'); await wait(2500); const s = await p.evaluate(over); ok(`${dev} ${brand ? 'branded ' : ''}call screen fits`, s.sw <= s.W && s.out.length === 0 && Math.abs(s.scale - 1) < 0.01, JSON.stringify(s));
+  const j = await p.evaluate(over); ok(`${dev} ${brand ? 'branded ' : ''}gate screen fits`, j.sw <= j.W && j.out.length === 0, JSON.stringify(j));
+  await p.click('#create'); await wait(1500);
+  const g = await c.newPage(); await g.goto(p.url()); await wait(800); const gv = await g.evaluate(over); ok(`${dev} ${brand ? 'branded ' : ''}invite screen fits`, gv.sw <= gv.W && gv.out.length === 0, JSON.stringify(gv));
+  const s = await p.evaluate(over); ok(`${dev} ${brand ? 'branded ' : ''}call screen fits`, s.sw <= s.W && s.out.length === 0 && Math.abs(s.scale - 1) < 0.01, JSON.stringify(s));
   await c.close();
 }
 console.log(fail ? 'FAILED ' + fail : 'ALL PASS'); await b.close(); srv.close(); process.exit(fail ? 1 : 0);

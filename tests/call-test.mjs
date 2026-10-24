@@ -4,9 +4,9 @@ const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--us
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; };
 const mk = async (u) => { const c = await b.newContext({ acceptDownloads: true }); const p = await c.newPage(); await p.goto(u); return p; };
-const A = await mk('http://localhost:8170/'); await A.fill('#name', 'Ann'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#cam'); await wait(2500);
-const B = await mk(url); await B.fill('#name', 'Bo'); await B.click('#cam');
-const C = await mk(url); await C.click('#nocam');
+const A = await mk('http://localhost:8170/'); await A.fill('#name', 'Ann'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#camb'); await A.click('#mic'); await wait(2500);
+const B = await mk(url); await B.fill('#name', 'Bo'); await B.click('#joinbtn'); await B.click('#camb'); await B.click('#mic');
+const C = await mk(url); await C.click('#joinbtn');
 await wait(14000);
 ok('A sees 2 peers', await A.evaluate(() => window.__pr.conns.size) === 2);
 ok('3 tiles on B', await B.evaluate(() => document.querySelectorAll('figure').length) === 3);
@@ -28,6 +28,6 @@ ok('screen share flagged', (await A.textContent('#videos')).includes('🖥'));
 // reconnect: C drops and rejoins
 await C.close(); await wait(22000);
 ok('A notices leave', await A.evaluate(() => window.__pr.conns.size) === 1);
-const C2 = await mk(url); await C2.click('#nocam'); await wait(15000);
+const C2 = await mk(url); await C2.click('#joinbtn'); await wait(15000);
 ok('rejoin works', await A.evaluate(() => window.__pr.conns.size) === 2);
 console.log(fail ? 'FAILED ' + fail : 'ALL PASS'); await b.close(); srv.close(); process.exit(fail ? 1 : 0);

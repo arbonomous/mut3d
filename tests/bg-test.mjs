@@ -6,7 +6,7 @@ const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--us
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; };
 const c = await b.newContext({ viewport: { width: 420, height: 820 } }); const A = await c.newPage(); A.on('pageerror', (e) => console.log('ERR', e.message));
-await A.goto('http://localhost:8186/'); await A.uncheck('#approve'); await A.click('#create'); await A.click('#cam'); await wait(2500);
+await A.goto('http://localhost:8186/'); await A.uncheck('#approve'); await A.click('#create'); await A.click('#camb'); await A.click('#mic'); await wait(2500);
 await A.click('#more'); await A.selectOption('#face', 'bgblur'); await wait(1500);
 const early = await A.evaluate(() => window.__pr.seg); console.log('seg early', early);
 await wait(9000);

@@ -16,9 +16,9 @@ for (const th of ['light', 'dark']) {
   const c = await b.newContext({ ...devices['iPhone 14'], colorScheme: th }); const p = await c.newPage(); await p.addInitScript((t) => localStorage.setItem('mut3d-theme', t), th);
   await p.goto('http://localhost:8191/'); await p.getByText('Options', { exact: true }).click(); await p.getByText('Brand this room').click(); await p.waitForTimeout(300);
   const r = await p.evaluate(contrast); const bad = r.filter((x) => x[1] < 3.5); ok(th + ' start screen contrast >= 3.5 (' + r.length + ' items)', bad.length === 0, JSON.stringify(bad));
-  await p.fill('#name', 'Host'); await p.getByText('Options', { exact: true }).click(); await p.click('#create'); await p.click('#cam'); await wait(2000);
+  await p.fill('#name', 'Host'); await p.getByText('Options', { exact: true }).click(); await p.click('#create'); await p.click('#camb'); await p.click('#mic'); await wait(2000);
   const inv = p.url().replace(/\.s[\w-]+$/, '');
   const g = await (await b.newContext({ ...devices['iPhone 14'], colorScheme: th })).newPage(); await g.addInitScript((t) => localStorage.setItem('mut3d-theme', t), th); await g.goto(inv); await g.waitForTimeout(500); await g.screenshot({ path: `/tmp/join-${th}.png` });
-  await g.click('#cam'); await wait(8000); await g.screenshot({ path: `/tmp/wait-${th}.png` }); await p.screenshot({ path: `/tmp/call-${th}.png` });
+  await g.click('#joinbtn'); await wait(8000); await g.screenshot({ path: `/tmp/wait-${th}.png` }); await p.screenshot({ path: `/tmp/call-${th}.png` });
 }
 console.log(fail ? 'FAILED ' + fail : 'ALL PASS'); await b.close(); srv.close(); process.exit(fail ? 1 : 0);

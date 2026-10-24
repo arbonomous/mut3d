@@ -4,9 +4,9 @@ const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--us
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; };
 const mk = async (u) => { const c = await b.newContext({ acceptDownloads: true }); const p = await c.newPage(); await p.goto(u); return p; };
-const A = await mk('http://localhost:8171/'); await A.fill('#name', 'Ann'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#cam'); await wait(2500);
+const A = await mk('http://localhost:8171/'); await A.fill('#name', 'Ann'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#camb'); await A.click('#mic'); await wait(2500);
 const P = [A];
-for (let i = 1; i < 8; i++) { const x = await mk(url); await x.fill('#name', 'P' + i); if (i % 2) await x.click('#cam'); else await x.click('#nocam'); P.push(x); await wait(2500); }
+for (let i = 1; i < 8; i++) { const x = await mk(url); await x.fill('#name', 'P' + i); await x.click('#joinbtn'); P.push(x); await wait(2500); }
 await wait(25000);
 ok('all 8 see 7 peers', (await Promise.all(P.map((p) => p.evaluate(() => window.__pr.conns.size)))).every((n) => n === 7));
 ok('8 tiles each', (await Promise.all(P.map((p) => p.evaluate(() => document.querySelectorAll('figure').length)))).every((n) => n === 8));
@@ -15,6 +15,6 @@ const br = await A.evaluate(() => { const out = []; for (const c of window.__pr.
 console.log('send maxBitrate per peer:', JSON.stringify(br));
 await P[1].click('#chatbtn'); await P[1].fill('#msg', 'six'); await P[1].press('#msg', 'Enter'); await wait(2500);
 ok('chat reaches all', (await Promise.all([A, P[3], P[5]].map(async (p) => { await p.click('#chatbtn').catch(() => {}); return (await p.textContent('#log')).includes('six'); }))).every(Boolean));
-const G = await mk(url); await G.click('#nocam'); await wait(20000);
+const G = await mk(url); await G.click('#joinbtn'); await wait(20000);
 ok('9th sees room full', (await G.textContent('#status')).includes('full'));
 console.log(fail ? 'FAILED ' + fail : 'ALL PASS'); await b.close(); srv.close(); process.exit(fail ? 1 : 0);

@@ -11,10 +11,10 @@ for (const mode of ['plain', 'scheduled+preinvite', 'branded']) {
   if (mode === 'branded') { await A.getByText('Brand this room').click(); await A.fill('#brandname', 'Acme'); await A.selectOption('#brandcolor', '2'); }
   await A.click('#create'); await wait(400);
   let invite;
-  if (mode === 'scheduled+preinvite') { await A.click('#joininvite'); await wait(300); invite = await A.evaluate(() => document.querySelector('#invurl').textContent); await A.click('#invclose'); const full = await A.evaluate(() => location.href); invite = full.replace(/\.s[\w-]+$/, ''); }
+  if (mode === 'scheduled+preinvite') { invite = A.url().replace(/\.s[\w-]+$/, ''); }
   else invite = A.url().replace(/\.s[\w-]+$/, '');
-  await A.click('#cam'); await wait(2500);
-  const G = await mk(invite, devices['iPhone 14']); await G.fill('#name', 'Guest'); await G.click('#cam'); await wait(9000);
+  await A.click('#camb'); await A.click('#mic'); await wait(2500);
+  const G = await mk(invite, devices['iPhone 14']); await G.fill('#name', 'Guest'); await G.click('#joinbtn'); await wait(9000);
   ok(mode + ': guest waiting', await G.isVisible('#wait'));
   const t = await A.textContent('#knocks'); ok(mode + ': host sees knock: ' + t.slice(0, 30), t.includes('Guest wants to join'));
   const box = await A.evaluate(() => { const r = document.querySelector('.knock:not(#bulk)')?.getBoundingClientRect(); return r && [r.top, r.bottom, innerHeight, getComputedStyle(document.querySelector('#knocks')).display]; }); console.log(mode, JSON.stringify(box));

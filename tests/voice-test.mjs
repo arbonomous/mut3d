@@ -4,8 +4,8 @@ const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--us
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; };
 const mk = async (u) => { const c = await b.newContext(); const p = await c.newPage(); p.on('pageerror', (e) => console.log('ERR', e.message)); await p.goto(u); return p; };
-const A = await mk('http://localhost:8175/'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#cam'); await wait(2000);
-const B = await mk(url); await B.click('#cam'); await wait(14000);
+const A = await mk('http://localhost:8175/'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#mic'); await wait(2000);
+const B = await mk(url); await B.click('#joinbtn'); await B.click('#mic'); await wait(14000);
 // measure dominant frequency and level of remote audio on B over ~3s
 const probe = () => B.evaluate(async () => {
   const v = [...document.querySelectorAll('figure')].find((f) => f.__local === false).querySelector('video');

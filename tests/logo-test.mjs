@@ -17,7 +17,7 @@ for (const safari of [false, true]) for (const th of ['light', 'dark']) {
   const jo = await p.evaluate(() => { const i = document.querySelector('#join-brand img'); return i && [i.naturalWidth, i.getBoundingClientRect().width]; });
   ok(tag + ': logo shows on join screen', jo && jo[0] > 0 && jo[1] >= 70, JSON.stringify(jo));
   await p.screenshot({ path: `/tmp/join2-${safari ? 's' : 'c'}-${th}.png` });
-  await p.click('#cam'); await wait(2000);
+  await p.click('#camb'); await p.click('#mic'); await wait(2000);
   const hd = await p.evaluate(() => { const i = document.querySelector('.top img.bavatar'); return { img: i && i.naturalWidth, w: i && i.getBoundingClientRect().width, h1: document.querySelector('.top h1').textContent, sub: document.querySelector('#sub').textContent, subVisible: !document.querySelector('#sub').hidden, mark: getComputedStyle(document.querySelector('#topmark')).display, title: document.title }; });
   ok(tag + ': header shows logo, name and mut3d line', hd.img > 0 && hd.w >= 36 && hd.h1 === 'Glizzy Room' && hd.subVisible && hd.sub.includes('mut3d') && hd.title.includes('mut3d'), JSON.stringify(hd));
   await p.screenshot({ path: `/tmp/call2-${safari ? 's' : 'c'}-${th}.png` });

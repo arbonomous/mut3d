@@ -3,8 +3,8 @@ const srv = http.createServer((q, r) => { r.writeHead(200, { 'content-type': 'te
 const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--no-sandbox', '--allow-loopback-in-peer-connection'] });
 let fail = 0; const ok = (n, c) => { console.log(c ? 'PASS' : 'FAIL', n); if (!c) fail++; }; const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const mk = async (u) => { const p = await (await b.newContext()).newPage(); await p.goto(u); return p; };
-const A = await mk('http://localhost:8183/'); await A.fill('#name', 'A'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#cam');
-const B = await mk(url); await B.click('#cam'); await wait(12000);
+const A = await mk('http://localhost:8183/'); await A.fill('#name', 'A'); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#camb'); await A.click('#mic');
+const B = await mk(url); await B.click('#joinbtn'); await B.click('#camb'); await B.click('#mic'); await wait(12000);
 const enc = () => A.evaluate(() => [...window.__pr.calls.values()].map((c) => c.peerConnection.getSenders().filter((s) => s.track && s.track.kind === 'video').map((s) => s.getParameters().encodings[0].maxBitrate)));
 ok('direct call: relayCalls 0', (await A.evaluate(() => window.__pr.relayCalls)) === 0);
 const before = await enc(); console.log('direct bitrate', JSON.stringify(before));

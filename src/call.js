@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v24';
+const VERSION = 'v25';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -107,7 +107,14 @@ function fakeStream(label) {
     g.fillStyle = colors[me >= 0 ? me % 4 : 0]; g.fillRect(20 + (t % 240), 150, 40, 40);
     g.fillStyle = '#fff'; g.font = '20px sans-serif'; g.fillText(label + ' (test video)', 20, 60); t += 4;
   }, 66);
-  return cv.captureStream(15);
+  const stream = cv.captureStream(15);
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const dst = ac.createMediaStreamDestination();
+    stream.addTrack(dst.stream.getAudioTracks()[0]);
+    window.__pr.silentCtx = ac;
+  } catch (e) {}
+  return stream;
 }
 function showMicHelp() {
   const b = $('#michelp'); if (!b) return; b.hidden = false;
@@ -223,7 +230,7 @@ function health() {
       else if (ice === 'checking' || ice === 'new') msg = 'Connecting...';
       else if (ice === 'disconnected') msg = 'Connection dropped, retrying...';
       else if (!camOff && (!vt || v.videoWidth === 0) && !v.paused) msg = 'Waiting for their video...';
-    } else if (!box.__local || v.videoWidth === 0) msg = v.paused ? '' : 'Starting your camera...';
+    } else if (!state.cam) msg = ''; else if (!box.__local || v.videoWidth === 0) msg = v.paused ? '' : 'Starting your camera...';
     if (!v.paused && v.videoWidth > 0) msg = msg && slot !== me ? msg : '';
     st.textContent = msg; st.hidden = !msg;
     if (v.paused && v.srcObject && box.querySelector('.tap').hidden) tryPlay(v, box);
@@ -415,6 +422,7 @@ function voiceSwap(track) {
 }
 async function setVoice(p) {
   const sel = $('#voice');
+  if (p !== 'off' && !state.mic) { if (sel) sel.value = 'off'; sysMsg('Turn your microphone on first to use a voice effect.'); return; }
   try {
     if (p !== 'off' || voice.ctx) await voiceInit();
     voice.preset = p; voice.ctx ? voiceApply() : 0;
@@ -755,6 +763,33 @@ function sweep() {
   if ($('#status').textContent === 'Reconnecting...' || $('#status').textContent === 'Network problem, retrying...') status('In the call');
 }
 
+// ---- device enable: camera and mic start off; the first tap here is the only time the browser asks for them ----
+let gotMic = false, gotCam = false;
+async function enableMic() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { sysMsg('This browser cannot use the microphone here.'); return; }
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const t = s.getAudioTracks()[0]; if (!t) throw new Error('no mic');
+    local.getAudioTracks().forEach((x) => { x.stop(); local.removeTrack(x); });
+    local.addTrack(t); voiceSwap(t); gotMic = true; state.mic = true; setTracks();
+  } catch (e) { showMicHelp(); }
+}
+async function enableCam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { sysMsg('This browser cannot use the camera here.'); return; }
+  const tries = [
+    { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } },
+    { video: { facingMode: 'user' } },
+    { video: true },
+  ];
+  let s = null;
+  for (const c of tries) { try { s = await navigator.mediaDevices.getUserMedia(c); break; } catch (e) { window.__pr.gumErr = e && e.name; } }
+  if (!s) { status('Camera blocked (' + (window.__pr.gumErr || 'error') + ').'); sysMsg('Camera is blocked. Allow the camera in your browser settings, then tap the camera button again.'); return; }
+  const t = s.getVideoTracks()[0]; if (!t) return;
+  local.getVideoTracks().forEach((x) => { x.stop(); local.removeTrack(x); });
+  local.addTrack(t); gotCam = true; state.cam = true;
+  swapVideo(t); setTracks();
+}
+
 // ---- controls ----
 function setTracks() {
   local.getAudioTracks().forEach((t) => { t.enabled = state.mic; }); if (voice.track) voice.track.enabled = state.mic;
@@ -856,11 +891,19 @@ async function start(useCam) {
   aes = await crypto.subtle.importKey('raw', await sha('enc:' + key), 'AES-GCM', false, ['encrypt', 'decrypt']);
   window.__pr.roomId = roomId;
   $('#gate').hidden = true; $('#room').hidden = false;
-  local = await getStream(useCam);
-  if (useCam && !local.getAudioTracks().length) showMicHelp();
-  state.mic = local.getAudioTracks().length > 0; state.cam = local.getVideoTracks().length > 0 && useCam;
-  $('#mic').onclick = () => { state.mic = !state.mic; setTracks(); };
-  $('#camb').onclick = () => { state.cam = !state.cam; setTracks(); };
+  local = fakeStream('You');
+  gotMic = false; gotCam = false;
+  state.mic = false; state.cam = false;
+  $('#mic').onclick = async () => {
+    if (state.mic) { state.mic = false; setTracks(); return; }
+    if (!gotMic) { await enableMic(); return; }
+    state.mic = true; setTracks();
+  };
+  $('#camb').onclick = async () => {
+    if (state.cam) { state.cam = false; setTracks(); return; }
+    if (!gotCam) { await enableCam(); return; }
+    state.cam = true; setTracks();
+  };
   $('#share').onclick = () => { $('#sheet').hidden = true; toggleShare(); };
   $('#more').onclick = () => { $('#sheet').hidden = !$('#sheet').hidden; };
   $('#sheetx').onclick = () => { $('#sheet').hidden = true; };
@@ -993,10 +1036,10 @@ async function boot() {
     const bt = []; if (bn) bt.push('n' + b64u(enc.encode(bn))); if (bn && bc >= 0) bt.push('c' + bc); if (bl) bt.push('l' + bl); parts.push(...bt);
     if ($('#approve').checked) { const k = await hostKeys(); parts.push('p' + k.pub); const ex = +$('#expire').value; if (ex) parts.push('e' + (base + ex).toString(36)); if (st) parts.push('t' + st.toString(36)); parts.push('s' + k.priv); }
     else { const ex = +$('#expire').value; if (ex) parts.push('e' + (base + ex).toString(36)); if (st) parts.push('t' + st.toString(36)); }
-    location.hash = parts.join('.'); show();
+    location.hash = parts.join('.');
+    await start(false);
   };
-  $('#cam').onclick = () => start(true);
-  $('#nocam').onclick = () => start(false);
+  $('#joinbtn').onclick = () => start(false);
   function show() { $('#create').hidden = hasKey(); $('#join').hidden = !hasKey(); $('#opts').hidden = hasKey(); $('#apr').hidden = hasKey(); paintWhen(); }
   show();
   setInterval(paintWhen, 20000);

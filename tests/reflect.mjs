@@ -4,7 +4,7 @@ if (!URL0) { srv = http.createServer((q, r) => { r.writeHead(200, { 'content-typ
 const b = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--no-sandbox', '--allow-loopback-in-peer-connection'] });
 const mk = async (u) => { const c = await b.newContext(); const p = await c.newPage(); await p.goto(u); return p; };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const A = await mk(base); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await A.click('#nocam'); await wait(2500);
+const A = await mk(base); await A.uncheck('#approve'); await A.click('#create'); const url = A.url(); await wait(2500);
 const rid = await A.evaluate(() => window.__pr.roomId);
 const X = await mk(base);
 const res = await X.evaluate(async (rid) => {

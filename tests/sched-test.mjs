@@ -23,7 +23,7 @@ const link = await A.evaluate(() => { return document.querySelector('#invurl').t
 const full = (await A.evaluate(() => location.href)).replace(/\.s[^.]*$/, '');
 const B = await (await b.newContext()).newPage(); await B.goto(full); await wait(500);
 ok('guest sees schedule', (await B.textContent('#when-note')).includes('Scheduled for'));
-await A.click('#cam'); await wait(2500); await B.click('#nocam'); await wait(1500);
+await A.click('#camb'); await A.click('#mic'); await wait(2500); await B.click('#joinbtn'); await wait(1500);
 ok('host admits then call works', true);
 const C = await (await b.newContext()).newPage(); await C.goto('http://localhost:8181/'); await C.click('#create'); await wait(300);
 ok('no schedule when not set', !(await C.isVisible('#when-note')));
