@@ -1,0 +1,12 @@
+The files in this directory are from MediaPipe (Google):
+
+- vision_bundle.mjs and wasm/* are from the @mediapipe/tasks-vision npm
+  package, version 1.1.0, licensed under the Apache License, Version 2.0.
+- face_landmarker.task and selfie_segmenter.tflite are MediaPipe model files,
+  licensed under the Apache License, Version 2.0.
+
+Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+Source: https://github.com/google-ai-edge/mediapipe
+
+The files are served from this site only; no third-party servers are contacted
+to load them. Fetch and verify with fetch-mediapipe.sh (hashes in mp.sha256).

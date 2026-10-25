@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v26';
+const VERSION = 'v27';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -247,16 +247,62 @@ function tryAnswer(s) {
 }
 const vidTracks = () => (face.on && face.track ? [face.track] : local.getVideoTracks());
 const currentOut = () => (voice.track || face.on ? new MediaStream([...(voice.track ? [voice.track] : local.getAudioTracks()), ...vidTracks()]) : local);
-// ---- face blur: draws the outgoing camera onto a small canvas, heavily blurred, in this browser. Off = the untouched camera. ----
-// Blurs the whole picture, face included. Capped at 480px wide and 15 fps to save battery.
+// ---- face blur: draws the outgoing camera onto a small canvas in this browser and blurs every detected face. Off = the untouched camera. ----
+// Face tracking (MediaPipe Face Landmarker) runs here on the CPU; the files load from our own origin, only when Blur is picked.
+// Safety rule: while the model loads or no face is found, the WHOLE picture is blurred - the raw camera never leaves while Blur is on.
+// Capped at 480px wide and 15 fps to save battery.
+const face = { on: false, preset: 'off', track: null, cv: null, vid: null, timer: null, tiny: null };
+const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+function mpLoad() {
+  if (face.lm) return Promise.resolve(face.lm);
+  if (face.loading) return face.loading;
+  window.__pr.mp = 'loading';
+  const base = '/mp/';
+  face.loading = import(/* @vite-ignore */ base + 'vision_bundle.mjs').then(async (mod) => {
+    const fs = await mod.FilesetResolver.forVisionTasks(base + 'wasm');
+    // CPU (wasm) on purpose: the GPU path is flaky on phones. Detection runs about 10 times a second.
+    face.lm = await mod.FaceLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: base + 'face_landmarker.task', delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: 3 });
+    window.__pr.mp = 'ready'; return face.lm;
+  }).catch((e) => { window.__pr.mp = 'failed:' + (e && e.message); face.loading = null; throw e; });
+  return face.loading;
+}
+function detect(v) {
+  const now = performance.now();
+  if (!face.lm || now - (face.lastDet || 0) < 100) return;
+  face.lastDet = now;
+  try {
+    const r = face.lm.detectForVideo(v, now);
+    if (r && r.faceLandmarks && r.faceLandmarks.length) {
+      face.res = { faces: r.faceLandmarks, at: now };
+    } else if (face.res && now - face.res.at > 600) face.res = null;
+    window.__pr.faceSeen = !!face.res; window.__pr.faceCount = r && r.faceLandmarks ? r.faceLandmarks.length : 0;
+  } catch (e) { window.__pr.mpErr = String(e && e.message); }
+}
 function faceDraw() {
   const v = face.vid, cv = face.cv; if (!v || !v.videoWidth || !state.cam) return;
   const w = Math.min(480, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   const x = cv.getContext('2d'), t = face.tiny, tx = t.getContext('2d');
-  t.width = 16; t.height = Math.max(2, Math.round(16 * h / w));
-  tx.imageSmoothingEnabled = true; tx.drawImage(v, 0, 0, t.width, t.height);
-  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(t, 0, 0, w, h);
+  const whole = () => { t.width = 16; t.height = Math.max(2, Math.round(16 * h / w)); tx.imageSmoothingEnabled = true; tx.drawImage(v, 0, 0, t.width, t.height); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(t, 0, 0, w, h); };
+  detect(v);
+  const r = face.res;
+  if (!r) { whole(); return; } // model loading, model failed, or no face right now: the raw camera never leaves while Blur is on
+  x.imageSmoothingEnabled = true; x.drawImage(v, 0, 0, w, h);
+  for (const L of r.faces) {
+    const xs = [], ys = []; for (const c of FACE_OVAL) { xs.push(L[c].x * w); ys.push(L[c].y * h); }
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, fw = x1 - x0, fh = y1 - y0;
+    if (fw < 8 || fh < 8) continue;
+    // blur only the face region: shrink it hard, stretch it back inside an elliptical clip
+    const rw = fw * 1.5, rh = fh * 1.6;
+    const sx = Math.max(0, cx - rw / 2), sy = Math.max(0, cy - rh / 2);
+    const sw = Math.min(rw, w - sx), sh = Math.min(rh, h - sy);
+    t.width = 6; t.height = Math.max(2, Math.round(6 * sh / sw));
+    tx.imageSmoothingEnabled = true;
+    tx.drawImage(v, sx * v.videoWidth / w, sy * v.videoHeight / h, sw * v.videoWidth / w, sh * v.videoHeight / h, 0, 0, t.width, t.height);
+    x.save(); x.beginPath(); x.ellipse(cx, cy, rw / 2, rh / 2, 0, 0, Math.PI * 2); x.clip();
+    x.drawImage(t, 0, 0, t.width, t.height, sx, sy, sw, sh); x.restore();
+  }
 }
 function faceSwapTo(track) {
   const box = tile(me); const vv = box && box.querySelector('video');
@@ -280,9 +326,11 @@ function setFace(p) {
       face.track = face.cv.captureStream(15).getVideoTracks()[0];
     }
     face.preset = p; face.on = true; face.track.enabled = state.cam;
+    if (!face.lm) sysMsg('Loading face tracking (about 17 MB, once). Until it is ready your whole video is blurred - never your raw camera.');
+    mpLoad().catch(() => { sysMsg('Face tracking could not load here. Your whole video stays blurred while Blur is on.'); });
     if (!face.timer) face.timer = setInterval(faceDraw, 66);
     faceDraw(); faceSwapTo(face.track); window.__pr.face = p;
-    sysMsg('Blur on. Your ENTIRE video is blurred, not just your face. Your voice can still identify you.');
+    sysMsg('Blur on. Faces in your video are blurred. Until a face is found, the whole picture stays blurred - never your raw camera. Your voice can still identify you.');
   } catch (e) { face.on = false; face.preset = 'off'; clearInterval(face.timer); face.timer = null; if (sel) sel.value = 'off'; sysMsg('Face effects are not available in this browser.'); window.__pr.faceErr = String(e && e.message); }
 }
 // ---- voice disguise: processes only the outgoing mic, in this browser. Off by default. ----

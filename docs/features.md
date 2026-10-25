@@ -16,11 +16,13 @@ More menu > Voice disguise: Off (default), Deeper, Higher, Robot. It runs in you
 
 ## Face blur
 
-More menu > Face disguise: Off (default, the untouched camera) or Blur. Blur runs in your own browser on your camera before anything is sent: the picture is shrunk and stretched back up until nothing is sharp, so the others get a heavily blurred video, face included. Nothing is uploaded. Drawing is capped at 15 fps and 480 px wide to save battery.
+More menu > Face disguise: Off (default, the untouched camera) or Blur face. Blur runs in your own browser on your camera before anything is sent: a face detector (MediaPipe Face Landmarker, served from our own site under `public/mp/`, no third-party servers) finds every face in the picture and each face is replaced by a heavily blurred ellipse while the rest of the video stays sharp. Nothing is uploaded. Up to 3 faces are tracked; detection runs on the CPU so it works without a GPU.
 
-It is a disguise, not anonymity: your voice can still identify you. If the browser can't capture a canvas, you get a chat note and the call carries on with your normal camera.
+Your raw camera is never sent while Blur is selected: until the model has loaded, while no face is found (looking away, face covered, poor light), or if the model fails to load, the whole video is blurred instead and a chat note says so. Drawing is capped at 15 fps and 480 px wide to save battery.
 
-Tests: `tests/face-test.mjs`.
+It is a disguise, not anonymity: your voice can still identify you, and a face-sized blurred area still shows rough position and movement. If the browser can't capture a canvas, you get a chat note and the call carries on with your normal camera.
+
+Tests: `tests/face-test.mjs` (synthetic pattern, model loading, picker) and `tests/face-real-test.mjs` (real face footage: static, moving, two faces, no face, model failure).
 ## Speaker highlight, enlarge, install
 
 The person who is talking gets a green outline (measured from the audio you already receive, in your browser). Tap a tile to enlarge it, tap again to go back. On phones, "Add to Home Screen" installs mut3d as an app. The service worker (`public/sw.js`) keeps only the app page and icons so it opens offline. It never stores chat, files, feedback, relay credentials or room keys (the key is after the # in the link and is never part of a request).

@@ -36,5 +36,8 @@ The call content is peer to peer, but starting a call depends on three outside p
 ## You are trusting the code you are served
 Like every website that does encryption in the browser, the page you load is the code that handles your key. Whoever controls the hosting could serve a changed page. What you can check: `npm run verify` builds the app from this repository and compares it byte for byte with the live page. The in-app "More" panel also shows what was sent to the introduction server and counts how many of those messages contain your room key (should be 0).
 
+## Face blur
+The face blur finds faces on your own device with MediaPipe Face Landmarker. The model files are served from this site (`/mp/`, listed in `public/mp/NOTICE.txt`, Apache-2.0); loading them contacts no third-party servers, and detection runs locally in your browser. While Blur is selected your raw camera is never sent: until a face is found, or if the model cannot load, the whole video is blurred instead. It is a disguise, not anonymity: your voice, the room around you and the blurred area's movement can still identify you.
+
 ## Last checked
 Oct 16, 2026: a headless-browser call on the live site made requests only to this site and the introduction server, set no cookies, stored nothing in the browser, and none of the introduction-server messages contained the room key. The live page matched a build from this repository exactly. These checks do not replace an independent audit.

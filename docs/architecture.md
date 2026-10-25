@@ -19,7 +19,7 @@ flowchart LR
 | --- | --- |
 | `src/call.js`, `src/call.html`, `src/audit.js` | The whole app. `build.mjs` bundles them with esbuild into one self-contained `dist/index.html`. |
 | `_worker.js` | Cloudflare Pages Function (advanced mode). Routes: `/turn` relay credentials, `/fb` feedback, `/s` short links. Everything else is served as static files. |
-| `public/` | Manifest, service worker, icons, the landing page (`public/about/`). |
+| `public/` | Manifest, service worker, icons, the landing page (`public/about/`), and the face-model files (`public/mp/`, MediaPipe, Apache-2.0, see `public/mp/NOTICE.txt`). |
 | `brand/` | Logo set and brand notes (palette Forest `#131A17`, Signal `#B9F27C`, Chalk `#F5F8F2`). |
 | `tests/` | Headless-browser tests (Playwright). See [testing](testing.md). |
 | `parked/` | An earlier coding and AI version, kept for reference. Not built, not shown. |
@@ -38,8 +38,8 @@ flowchart LR
 - Host controls (approval, lock, waiting list, end room): in the host's browser.
 - Short links (optional): AES-GCM ciphertext of the full link, 24 hours, in D1. The decryption code stays after the `#` and never reaches the server.
 - Feedback: the note and a few optional device fields, 60 days, in D1.
-- Device: the theme name (`dark` or `light`) in local storage, and the app shell in the service worker cache.
+- Device: the theme name (`dark` or `light`) in local storage, and the app shell, fonts and face-model files in the service worker cache.
 
 ## Stack
 
-Vanilla JavaScript, esbuild, WebRTC, PeerJS, Web Crypto (AES-GCM), `qrcode-generator`, Cloudflare Pages + Functions + D1, Playwright for tests.
+Vanilla JavaScript, esbuild, WebRTC, PeerJS, Web Crypto (AES-GCM), `qrcode-generator`, MediaPipe Face Landmarker (on-device face detection for the face blur, self-hosted), Cloudflare Pages + Functions + D1, Playwright for tests.

@@ -17,7 +17,7 @@
 - Group video and voice, chat, and file send (up to 25 MB) in the browser.
 - The room key lives after the `#` of the link, so it never reaches a server.
 - Nothing about a call is stored by us. Close the tab and it is gone.
-- Extras: invite QR and share sheet, optional short link, room lock and waiting list, voice disguise (deeper, higher, robot) and face blur, light and dark theme, installable on phones.
+- Extras: invite QR and share sheet, optional short link, room lock and waiting list, voice disguise (deeper, higher, robot) and real face blur (finds faces on your device, blurs only them), light and dark theme, installable on phones.
 
 Details for each feature are in [docs/features.md](docs/features.md).
 
@@ -70,4 +70,4 @@ Deploy `dist/index.html` plus `_worker.js` and `public/` as a Cloudflare Pages p
 Use **Send feedback** in the app. You see the exact text before it is sent, and it never includes your room link, names or chat.
 
 ## Credits
-[PeerJS](https://peerjs.com), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [metered.ca](https://www.metered.ca) (free relay tier), Cloudflare Pages.
+[PeerJS](https://peerjs.com), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [MediaPipe](https://github.com/google-ai-edge/mediapipe) Face Landmarker (Apache-2.0, self-hosted, see `public/mp/NOTICE.txt`), [metered.ca](https://www.metered.ca) (free relay tier), Cloudflare Pages.

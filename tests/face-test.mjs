@@ -31,8 +31,12 @@ const rawSharp = await sharp(); console.log('raw sharpness', rawSharp);
 await A.click('#more'); await A.selectOption('#face', 'blur'); await wait(2500);
 const bl = await probe(); ok('blur flows at 480', bl.moving && bl.w === 480);
 const blurSharp = await sharp(); console.log('blur sharpness', blurSharp); ok('blur is visibly blurrier than raw', blurSharp < rawSharp * 0.6);
-const mpReqs = await A.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/mp/') || /mediapipe|googleapis|jsdelivr|unpkg/.test(n)));
-console.log('model/third-party requests:', JSON.stringify(mpReqs)); ok('no model files or third-party requests', mpReqs.length === 0);
+await A.waitForFunction(() => window.__pr.mp === 'ready', null, { timeout: 30000 }).catch(() => {});
+ok('face model ready from own origin', await A.evaluate(() => window.__pr.mp === 'ready'));
+const mpReqs = await A.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/mp/')));
+const tpReqs = await A.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => /mediapipe|googleapis|jsdelivr|unpkg|cdn/.test(n)));
+console.log('model requests:', JSON.stringify(mpReqs)); ok('model files load from own origin only', mpReqs.length > 0 && mpReqs.every((n) => n.startsWith('http://localhost:8185/mp/')));
+console.log('third-party requests:', JSON.stringify(tpReqs)); ok('no third-party model requests', tpReqs.length === 0);
 await A.selectOption('#face', 'off'); await wait(3000); const off = await probe(); ok('off restores raw camera', off.moving && off.w === 640);
 // speaker highlight + enlarge
 const lv = await B.evaluate(async () => { await new Promise((r) => setTimeout(r, 2500)); return { levels: window.__pr.levels, talk: document.querySelectorAll('figure.talk').length }; });
