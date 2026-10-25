@@ -16,18 +16,23 @@ const probe = () => B.evaluate(async () => {
   const t0 = v.currentTime; await new Promise((r) => setTimeout(r, 1200));
   return { w: v.videoWidth, moving: v.currentTime > t0 };
 });
+// mean abs horizontal pixel difference of the remote frame: a sharp test pattern scores high, a blurred one low
+const sharp = () => B.evaluate(async () => {
+  const v = [...document.querySelectorAll('figure')].find((f) => f.__local === false).querySelector('video');
+  const c = document.createElement('canvas'); c.width = 160; c.height = 120; const x = c.getContext('2d');
+  x.drawImage(v, 0, 0, 160, 120); const d = x.getImageData(0, 0, 160, 120).data; let s = 0, n = 0;
+  for (let y = 0; y < 120; y += 4) for (let xx = 1; xx < 160; xx++) { const i = (y * 160 + xx) * 4; s += Math.abs(d[i] - d[i - 4]); n++; }
+  return s / n;
+});
 const base = await probe(); console.log('base', base); ok('remote video flowing', base.w > 0 && base.moving);
-const hasEmoji = await A.evaluate(() => [...document.querySelectorAll('#face option')].map((o) => o.value));
-console.log(hasEmoji.join(',')); ok('emoji removed, mask+avatar present', !hasEmoji.includes('emoji') && hasEmoji.includes('mask') && hasEmoji.includes('avatar'));
-await A.click('#more'); await A.selectOption('#face', 'pixel'); await wait(2500); const px = await probe(); ok('pixelate flows at 480', px.moving && px.w === 480);
-await A.selectOption('#face', 'blur'); await wait(2500); const bl = await probe(); ok('blur flows', bl.moving && bl.w === 480);
-await A.selectOption('#face', 'avatar'); await wait(9000);
-const mp = await A.evaluate(() => ({ mp: window.__pr.mp, err: window.__pr.mpErr, face: window.__pr.face }));
-console.log('mp', mp); ok('face model loaded from own origin', mp.mp === 'ready');
-const av = await probe(); console.log('avatar', av); ok('avatar stream flows while no face is found', av.moving && av.w === 480);
-const reqs = await A.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => !n.startsWith(location.origin) && !n.startsWith('data:') && !n.startsWith('blob:')));
-console.log('third-party requests:', JSON.stringify(reqs)); ok('no third-party requests for face tracking', reqs.filter((n) => /mediapipe|googleapis|jsdelivr|unpkg/.test(n)).length === 0);
-await A.selectOption('#face', 'mask'); await wait(2500); const mk2 = await probe(); ok('mask flows', mk2.moving && mk2.w === 480);
+const opts = await A.evaluate(() => [...document.querySelectorAll('#face option')].map((o) => o.value));
+console.log(opts.join(',')); ok('picker is exactly off + blur', opts.length === 2 && opts[0] === 'off' && opts[1] === 'blur');
+const rawSharp = await sharp(); console.log('raw sharpness', rawSharp);
+await A.click('#more'); await A.selectOption('#face', 'blur'); await wait(2500);
+const bl = await probe(); ok('blur flows at 480', bl.moving && bl.w === 480);
+const blurSharp = await sharp(); console.log('blur sharpness', blurSharp); ok('blur is visibly blurrier than raw', blurSharp < rawSharp * 0.6);
+const mpReqs = await A.evaluate(() => performance.getEntriesByType('resource').map((e) => e.name).filter((n) => n.includes('/mp/') || /mediapipe|googleapis|jsdelivr|unpkg/.test(n)));
+console.log('model/third-party requests:', JSON.stringify(mpReqs)); ok('no model files or third-party requests', mpReqs.length === 0);
 await A.selectOption('#face', 'off'); await wait(3000); const off = await probe(); ok('off restores raw camera', off.moving && off.w === 640);
 // speaker highlight + enlarge
 const lv = await B.evaluate(async () => { await new Promise((r) => setTimeout(r, 2500)); return { levels: window.__pr.levels, talk: document.querySelectorAll('figure.talk').length }; });

@@ -17,7 +17,7 @@
 - Group video and voice, chat, and file send (up to 25 MB) in the browser.
 - The room key lives after the `#` of the link, so it never reaches a server.
 - Nothing about a call is stored by us. Close the tab and it is gone.
-- Extras: invite QR and share sheet, optional short link, room lock and waiting list, voice and face disguise (blur, pixelate, mask, avatar, background blur), light and dark theme, installable on phones.
+- Extras: invite QR and share sheet, optional short link, room lock and waiting list, voice disguise (deeper, higher, robot) and face blur, light and dark theme, installable on phones.
 
 Details for each feature are in [docs/features.md](docs/features.md).
 
@@ -32,7 +32,7 @@ flowchart LR
 Video and voice go browser to browser over WebRTC. Chat, names and files are also sealed with AES-GCM using the key from the link, and each peer must pass a fresh challenge sealed with that key before anything flows. A small Cloudflare Pages Function hands out relay credentials, takes optional feedback and stores short-link ciphertext. Full write-up: [docs/architecture.md](docs/architecture.md).
 
 ## Tech
-Vanilla JavaScript bundled with esbuild into one HTML file &middot; WebRTC + PeerJS &middot; Web Crypto (AES-GCM) &middot; MediaPipe Tasks Vision for face and background effects &middot; Cloudflare Pages, Functions and D1 &middot; Playwright tests with real headless browsers.
+Vanilla JavaScript bundled with esbuild into one HTML file &middot; WebRTC + PeerJS &middot; Web Crypto (AES-GCM) &middot; Cloudflare Pages, Functions and D1 &middot; Playwright tests with real headless browsers.
 
 ## Honest limits
 - **Not independently audited.** Do not use it where your safety depends on it.
@@ -55,13 +55,12 @@ tests/        Playwright tests
 docs/         architecture, features, security, testing
 parked/       earlier coding and AI version, kept for reference, not built
 build.mjs     builds dist/index.html
-icons-gen.mjs, fetch-mediapipe.sh, mp.sha256   icon and model-file helpers
+icons-gen.mjs   icon helper
 ```
 
 ## Run it
 ```
 npm install
-./fetch-mediapipe.sh   # face and background model files (pinned, SHA-256 checked)
 npm run build                  # writes dist/index.html
 npm test                       # headless browser test suite
 ```
@@ -71,4 +70,4 @@ Deploy `dist/index.html` plus `_worker.js` and `public/` as a Cloudflare Pages p
 Use **Send feedback** in the app. You see the exact text before it is sent, and it never includes your room link, names or chat.
 
 ## Credits
-[PeerJS](https://peerjs.com), [MediaPipe](https://ai.google.dev/edge/mediapipe), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [metered.ca](https://www.metered.ca) (free relay tier), Cloudflare Pages.
+[PeerJS](https://peerjs.com), [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [metered.ca](https://www.metered.ca) (free relay tier), Cloudflare Pages.

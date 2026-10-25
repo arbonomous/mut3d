@@ -2,7 +2,7 @@ import { Peer } from 'peerjs';
 import qrcode from 'qrcode-generator';
 
 const APP_NAME = 'mut3d'; // working name, change here only
-const VERSION = 'v25';
+const VERSION = 'v26';
 const $ = (s) => document.querySelector(s);
 document.title = APP_NAME;
 document.querySelectorAll('.appname').forEach((e) => { e.textContent = APP_NAME; });
@@ -247,113 +247,16 @@ function tryAnswer(s) {
 }
 const vidTracks = () => (face.on && face.track ? [face.track] : local.getVideoTracks());
 const currentOut = () => (voice.track || face.on ? new MediaStream([...(voice.track ? [voice.track] : local.getAudioTracks()), ...vidTracks()]) : local);
-// ---- face disguise: draws the outgoing camera onto a small canvas with an effect, in this browser. Off = the untouched camera. ----
-// Not face-tracked: these cover or blur the whole picture. Capped at 480px wide and 15 fps to save battery.
-const FACE_OVAL = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
-const face = { on: false, preset: 'off', track: null, cv: null, vid: null, timer: null, tiny: null };
-const GREEN = '#B9F27C', INK = '#131A17';
-function mpLoad() {
-  if (face.lm) return Promise.resolve(face.lm);
-  if (face.loading) return face.loading;
-  window.__pr.mp = 'loading';
-  const base = '/mp/';
-  face.loading = import(/* @vite-ignore */ base + 'vision_bundle.mjs').then(async (mod) => {
-    const fs = await mod.FilesetResolver.forVisionTasks(base + 'wasm');
-    // CPU (wasm) on purpose: the GPU path is flaky on phones. Detection runs at about 10 per second.
-    face.lm = await mod.FaceLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: base + 'face_landmarker.task', delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: true });
-    window.__pr.mp = 'ready'; return face.lm;
-  }).catch((e) => { window.__pr.mp = 'failed:' + (e && e.message); face.loading = null; throw e; });
-  return face.loading;
-}
-// Background blur: a small person-cutout model (about 250 KB) runs in this browser. Only the background is blurred; your face stays visible.
-function segLoad() {
-  if (face.seg) return Promise.resolve(face.seg);
-  if (face.segLoading) return face.segLoading;
-  const base = '/mp/';
-  face.segLoading = import(/* @vite-ignore */ base + 'vision_bundle.mjs').then(async (mod) => {
-    const fs = await mod.FilesetResolver.forVisionTasks(base + 'wasm');
-    face.seg = await mod.ImageSegmenter.createFromOptions(fs, { baseOptions: { modelAssetPath: base + 'selfie_segmenter.tflite', delegate: 'CPU' }, runningMode: 'VIDEO', outputConfidenceMasks: true, outputCategoryMask: false });
-    window.__pr.seg = 'ready'; return face.seg;
-  }).catch((e) => { window.__pr.seg = 'failed:' + (e && e.message); face.segLoading = null; throw e; });
-  return face.segLoading;
-}
-function segment(v) {
-  const now = performance.now();
-  if (!face.seg || now - (face.lastSeg || 0) < 90) return;
-  face.lastSeg = now;
-  try {
-    face.seg.segmentForVideo(v, now, (res) => {
-      const m = res.confidenceMasks && res.confidenceMasks[0]; if (!m) return;
-      const a = m.getAsFloat32Array(), w = m.width, h = m.height;
-      if (!face.mc) face.mc = document.createElement('canvas');
-      if (face.mc.width !== w || face.mc.height !== h) { face.mc.width = w; face.mc.height = h; }
-      const cx = face.mc.getContext('2d'), id = cx.createImageData(w, h), d = id.data;
-      for (let i = 0; i < a.length; i++) { const p = a[i]; d[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(p * 255))); }
-      cx.putImageData(id, 0, 0); face.segAt = now; window.__pr.segSeen = true;
-    });
-  } catch (e) { window.__pr.segErr = String(e && e.message); }
-}
-function detect(v) {
-  const now = performance.now();
-  if (!face.lm || now - (face.lastDet || 0) < 100) return;
-  face.lastDet = now;
-  try {
-    const r = face.lm.detectForVideo(v, now);
-    if (r && r.faceLandmarks && r.faceLandmarks[0]) {
-      const bs = {}; const cats = r.faceBlendshapes && r.faceBlendshapes[0] && r.faceBlendshapes[0].categories; if (cats) for (const c of cats) bs[c.categoryName] = c.score;
-      face.res = { L: r.faceLandmarks[0], bs, at: now };
-    } else if (face.res && now - face.res.at > 600) face.res = null;
-    window.__pr.faceSeen = !!face.res;
-  } catch (e) { window.__pr.mpErr = String(e && e.message); }
-}
-function drawAvatar(x, w, h, mask) {
-  const r = face.res; if (!r) return false;
-  const L = r.L, P = (i) => ({ x: L[i].x * w, y: L[i].y * h });
-  const xs = [], ys = []; for (const c of FACE_OVAL) { xs.push(L[c].x * w); ys.push(L[c].y * h); }
-  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, fw = x1 - x0, fh = y1 - y0;
-  const a = P(33), c = P(263), roll = Math.atan2(c.y - a.y, c.x - a.x);
-  const bs = r.bs || {}; const blink = (k) => Math.min(1, (bs[k] || 0) * 1.6);
-  x.save(); x.translate(cx, cy); x.rotate(roll);
-  const rx = fw * 0.56, ry = fh * 0.58;
-  x.fillStyle = GREEN; x.beginPath(); x.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); x.fill();
-  const toLocal = (pt) => { const dx = pt.x - cx, dy = pt.y - cy, cs = Math.cos(-roll), sn = Math.sin(-roll); return { x: dx * cs - dy * sn, y: dx * sn + dy * cs }; };
-  const mid = (i, j) => { const p1 = P(i), p2 = P(j); return toLocal({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 }); };
-  const eyes = [[mid(33, 133), blink('eyeBlinkLeft')], [mid(362, 263), blink('eyeBlinkRight')]];
-  x.fillStyle = INK;
-  for (const [e, bl] of eyes) {
-    if (mask) { x.fillRect(e.x - fw * 0.1, e.y - fh * 0.015, fw * 0.2, Math.max(fh * 0.012, fh * 0.03 * (1 - bl))); }
-    else { x.beginPath(); x.ellipse(e.x, e.y, fw * 0.085, Math.max(fh * 0.01, fh * 0.07 * (1 - bl)), 0, 0, Math.PI * 2); x.fill(); }
-  }
-  const m = mid(61, 291), mw = Math.hypot(P(61).x - P(291).x, P(61).y - P(291).y), open = Math.min(1, (bs.jawOpen || 0) * 1.5);
-  if (mask) { x.fillRect(m.x - mw * 0.35, m.y - fh * 0.008, mw * 0.7, fh * 0.016 + open * fh * 0.1); }
-  else { x.beginPath(); x.ellipse(m.x, m.y + open * fh * 0.04, mw * 0.32, fh * 0.014 + open * fh * 0.09, 0, 0, Math.PI * 2); x.fill(); }
-  x.restore(); return true;
-}
+// ---- face blur: draws the outgoing camera onto a small canvas, heavily blurred, in this browser. Off = the untouched camera. ----
+// Blurs the whole picture, face included. Capped at 480px wide and 15 fps to save battery.
 function faceDraw() {
   const v = face.vid, cv = face.cv; if (!v || !v.videoWidth || !state.cam) return;
   const w = Math.min(480, v.videoWidth), h = Math.round(w * v.videoHeight / v.videoWidth);
   if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
   const x = cv.getContext('2d'), t = face.tiny, tx = t.getContext('2d');
-  const down = (tw, th, smooth) => { t.width = tw; t.height = th; tx.imageSmoothingEnabled = smooth; tx.drawImage(v, 0, 0, tw, th); };
-  const p = face.preset;
-  const pix = (n, smooth) => { down(n, Math.max(2, Math.round(n * h / w)), smooth); x.imageSmoothingEnabled = smooth; if (smooth) x.imageSmoothingQuality = 'high'; x.drawImage(t, 0, 0, w, h); };
-  if (p === 'pixel') pix(24, false);
-  else if (p === 'bgblur') {
-    segment(v); pix(36, true);
-    if (face.mc && performance.now() - face.segAt < 1500) {
-      if (!face.pc) face.pc = document.createElement('canvas'); const pc = face.pc; if (pc.width !== w || pc.height !== h) { pc.width = w; pc.height = h; }
-      const px = pc.getContext('2d'); px.globalCompositeOperation = 'source-over'; px.clearRect(0, 0, w, h); px.drawImage(v, 0, 0, w, h);
-      px.globalCompositeOperation = 'destination-in'; px.imageSmoothingEnabled = true; px.drawImage(face.mc, 0, 0, w, h); px.globalCompositeOperation = 'source-over';
-      x.drawImage(pc, 0, 0);
-    }
-  }
-  else if (p === 'avatar' || p === 'mask') {
-    detect(v);
-    if (p === 'avatar') { x.fillStyle = INK; x.fillRect(0, 0, w, h); } else pix(20, false);
-    // Until the face is found, show only the coarse blur/pixels or a plain card, never the raw camera.
-    if (!drawAvatar(x, w, h, p === 'mask') && p === 'avatar') { x.fillStyle = GREEN; x.font = Math.round(h * 0.07) + 'px system-ui,sans-serif'; x.textAlign = 'center'; x.fillText(face.lm ? 'looking for your face...' : 'loading face tracking...', w / 2, h / 2); }
-  } else pix(16, true);
+  t.width = 16; t.height = Math.max(2, Math.round(16 * h / w));
+  tx.imageSmoothingEnabled = true; tx.drawImage(v, 0, 0, t.width, t.height);
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(t, 0, 0, w, h);
 }
 function faceSwapTo(track) {
   const box = tile(me); const vv = box && box.querySelector('video');
@@ -377,11 +280,9 @@ function setFace(p) {
       face.track = face.cv.captureStream(15).getVideoTracks()[0];
     }
     face.preset = p; face.on = true; face.track.enabled = state.cam;
-    if (p === 'bgblur') { if (!face.seg) sysMsg('Loading background blur (about 13 MB, once). Until it is ready the whole picture is blurred, never your raw camera.'); segLoad().catch(() => { sysMsg('Background blur could not load. The whole picture stays blurred; pick another effect.'); }); }
-    if (p === 'mask' || p === 'avatar') { if (!face.lm) sysMsg('Loading face tracking (about 17 MB, once). Until it is ready you see a blur, never your raw camera.'); mpLoad().catch(() => { sysMsg('Face tracking could not load here, so I switched you to Pixelate.'); if (face.preset === p) { if (sel) sel.value = 'pixel'; face.preset = 'pixel'; } }); }
     if (!face.timer) face.timer = setInterval(faceDraw, 66);
     faceDraw(); faceSwapTo(face.track); window.__pr.face = p;
-    sysMsg(p === 'bgblur' ? 'Background blur on. Your face stays visible; only what is behind you is blurred.' : 'Face effect on. It hides your face, not you: your voice, background and room can still identify you.');
+    sysMsg('Blur on. Your whole video is blurred, face included. It hides how you look, not who you are: your voice can still identify you.');
   } catch (e) { face.on = false; face.preset = 'off'; clearInterval(face.timer); face.timer = null; if (sel) sel.value = 'off'; sysMsg('Face effects are not available in this browser.'); window.__pr.faceErr = String(e && e.message); }
 }
 // ---- voice disguise: processes only the outgoing mic, in this browser. Off by default. ----

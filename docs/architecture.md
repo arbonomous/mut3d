@@ -19,7 +19,7 @@ flowchart LR
 | --- | --- |
 | `src/call.js`, `src/call.html`, `src/audit.js` | The whole app. `build.mjs` bundles them with esbuild into one self-contained `dist/index.html`. |
 | `_worker.js` | Cloudflare Pages Function (advanced mode). Routes: `/turn` relay credentials, `/fb` feedback, `/s` short links. Everything else is served as static files. |
-| `public/` | Manifest, service worker, icons, the landing page (`public/about/`) and the face and background model files (`public/mp/`, fetched by script, not committed). |
+| `public/` | Manifest, service worker, icons, the landing page (`public/about/`). |
 | `brand/` | Logo set and brand notes (palette Forest `#131A17`, Signal `#B9F27C`, Chalk `#F5F8F2`). |
 | `tests/` | Headless-browser tests (Playwright). See [testing](testing.md). |
 | `parked/` | An earlier coding and AI version, kept for reference. Not built, not shown. |
@@ -42,4 +42,4 @@ flowchart LR
 
 ## Stack
 
-Vanilla JavaScript, esbuild, WebRTC, PeerJS, Web Crypto (AES-GCM), MediaPipe Tasks Vision (face landmarks, selfie segmentation), `qrcode-generator`, Cloudflare Pages + Functions + D1, Playwright for tests.
+Vanilla JavaScript, esbuild, WebRTC, PeerJS, Web Crypto (AES-GCM), `qrcode-generator`, Cloudflare Pages + Functions + D1, Playwright for tests.

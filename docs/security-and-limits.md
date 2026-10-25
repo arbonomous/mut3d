@@ -17,7 +17,6 @@
 - Up to 8 people. Screen share is not available on most phones.
 - Face and voice effects are disguises, not anonymity.
 - If a device is compromised, no tool can help.
-- Face and background-blur model licences were not independently verified; `@mediapipe/tasks-vision` is Apache-2.0.
 
 ## Who sees what
 

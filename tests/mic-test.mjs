@@ -9,7 +9,7 @@ const p1 = await c1.newPage(); await p1.goto('http://localhost:8171/'); await p1
 ok('mic help shown when mic denied', await p1.evaluate(() => !document.querySelector('#michelp').hidden));
 await p1.click('#micretry'); await wait(1500);
 ok('retry reports still blocked', (await p1.textContent('#micmsg')).includes('Still blocked'));
-ok('version shown', (await p1.evaluate(() => document.body.textContent)).includes('v25'));
+ok('version shown', /\(v\d+\)/.test(await p1.evaluate(() => document.body.textContent)));
 // both allowed
 const b2 = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--no-sandbox'] }); const c2 = await b2.newContext();
 const p2 = await c2.newPage(); await p2.goto('http://localhost:8171/'); await p2.fill('#name', 'Bo'); await p2.click('#create'); await p2.click('#mic'); await wait(3000);
