@@ -18,7 +18,7 @@ More menu > Voice disguise: Off (default), Deeper, Higher, Robot. It runs in you
 
 More menu > Face disguise: Off (default, the untouched camera) or Blur face. Blur runs in your own browser on your camera before anything is sent: a face detector (MediaPipe Face Landmarker, served from our own site under `public/mp/`, no third-party servers) finds every face in the picture and each face is replaced by a heavily blurred ellipse while the rest of the video stays sharp. Nothing is uploaded. Up to 3 faces are tracked; detection runs on the CPU so it works without a GPU.
 
-Your raw camera is never sent while Blur is selected: until the model has loaded, while no face is found (looking away, face covered, poor light), or if the model fails to load, the whole video is blurred instead and a chat note says so. Drawing is capped at 15 fps and 480 px wide to save battery.
+The processed video is never your raw camera: until the model has loaded, while no face is found (looking away, face covered, poor light), or if the model fails to load, the whole video is blurred instead and a chat note says so. Switching Blur on is not instant-hide: frames already on their way when you tap can still arrive for a fraction of a second (measured about a tenth of a second in tests); the camera source is paused during the switch so no new raw frames are captured. Drawing is capped at 15 fps and 480 px wide to save battery.
 
 It is a disguise, not anonymity: your voice can still identify you, and a face-sized blurred area still shows rough position and movement. If the browser can't capture a canvas, you get a chat note and the call carries on with your normal camera.
 

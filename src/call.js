@@ -306,7 +306,8 @@ function faceDraw() {
 }
 function faceSwapTo(track) {
   const box = tile(me); const vv = box && box.querySelector('video');
-  if (!screen) { swapVideo(track); if (vv) vv.srcObject = face.on ? new MediaStream([face.track]) : local; }
+  if (!screen) { const p = swapVideo(track); if (vv) vv.srcObject = face.on ? new MediaStream([face.track]) : local; return p; }
+  return Promise.resolve();
 }
 function setFace(p) {
   const sel = $('#face');
@@ -329,9 +330,14 @@ function setFace(p) {
     if (!face.lm) sysMsg('Loading face tracking (about 17 MB, once). Until it is ready your whole video is blurred - never your raw camera.');
     mpLoad().catch(() => { sysMsg('Face tracking could not load here. Your whole video stays blurred while Blur is on.'); });
     if (!face.timer) face.timer = setInterval(faceDraw, 66);
-    faceDraw(); faceSwapTo(face.track); window.__pr.face = p;
+    // stop new raw frames at the source while the sender switches to the blurred track;
+    // the other side may hold already-sent raw frames for a moment (transport), but none are newly captured
+    raw.enabled = false;
+    faceDraw();
+    faceSwapTo(face.track).finally(() => { raw.enabled = state.cam; });
+    window.__pr.face = p;
     sysMsg('Blur on. Faces in your video are blurred. Until a face is found, the whole picture stays blurred - never your raw camera. Your voice can still identify you.');
-  } catch (e) { face.on = false; face.preset = 'off'; clearInterval(face.timer); face.timer = null; if (sel) sel.value = 'off'; sysMsg('Face effects are not available in this browser.'); window.__pr.faceErr = String(e && e.message); }
+  } catch (e) { face.on = false; face.preset = 'off'; clearInterval(face.timer); face.timer = null; const rw = local.getVideoTracks()[0]; if (rw) rw.enabled = state.cam; if (sel) sel.value = 'off'; sysMsg('Face effects are not available in this browser.'); window.__pr.faceErr = String(e && e.message); }
 }
 // ---- voice disguise: processes only the outgoing mic, in this browser. Off by default. ----
 const voice = { ctx: null, track: null, node: null, src: null, mon: null, preset: 'off', hear: false };
@@ -748,11 +754,13 @@ function setTracks() {
   paintTile(me); sendMeta();
 }
 function swapVideo(track) {
+  const ps = [];
   for (const call of calls.values()) {
     const pc = call.peerConnection; if (!pc) continue;
     const snd = pc.getSenders().find((x) => x.track && x.track.kind === 'video') || pc.getSenders().find((x) => !x.track || x.track.kind === 'video');
-    if (snd && track) snd.replaceTrack(track).catch(() => {});
+    if (snd && track) ps.push(snd.replaceTrack(track).catch(() => {}));
   }
+  return Promise.all(ps);
 }
 async function toggleShare() {
   if (screen) { stopShare(); return; }
