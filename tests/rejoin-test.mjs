@@ -12,5 +12,4 @@ const st = await B.textContent('#status'); const va = await vids(A), vb = await 
 ok('B rejoined after refresh', /In the call/.test(st), st);
 ok('after refresh both see 2 videos', va.length === 2 && vb.length === 2, JSON.stringify([va, vb]));
 ok('no black/zero-size video after refresh', va.every((x) => !x.startsWith('0x')) && vb.every((x) => !x.startsWith('0x')), JSON.stringify([va, vb]));
-await A.evaluate(() => window.__pr.doc.getText('code').insert(0, 'hello')); await B.waitForTimeout(1500);
 console.log(res.every(Boolean) ? 'REJOIN PASS' : 'REJOIN FAIL'); process.exit(0);
