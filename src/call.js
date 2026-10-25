@@ -282,7 +282,7 @@ function setFace(p) {
     face.preset = p; face.on = true; face.track.enabled = state.cam;
     if (!face.timer) face.timer = setInterval(faceDraw, 66);
     faceDraw(); faceSwapTo(face.track); window.__pr.face = p;
-    sysMsg('Blur on. Your whole video is blurred, face included. It hides how you look, not who you are: your voice can still identify you.');
+    sysMsg('Blur on. Your ENTIRE video is blurred, not just your face. Your voice can still identify you.');
   } catch (e) { face.on = false; face.preset = 'off'; clearInterval(face.timer); face.timer = null; if (sel) sel.value = 'off'; sysMsg('Face effects are not available in this browser.'); window.__pr.faceErr = String(e && e.message); }
 }
 // ---- voice disguise: processes only the outgoing mic, in this browser. Off by default. ----
